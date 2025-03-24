@@ -47,3 +47,15 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+.Rproj.user
+
+# Data files
+data/*.csv
+
+# Figures and html files are not tracked
+*.pdf
+*.html
+
+# Results
+results/*/*.csv
+
