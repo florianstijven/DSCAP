@@ -15,6 +15,7 @@ n_boot <- as.integer(args[5])
 n_perm <- as.integer(args[6])
 estimate_weights = as.integer(args[7])
 truncation = as.integer(args[8])
+data_location = args[9]
 
 if (estimate_weights) {
   outfile_wts = "estwts"
@@ -45,7 +46,7 @@ Smod = as.formula(paste0("S ~ ",vars))
 
 # Load the data set. Wstratum refers to the strata that determine the
 # probability of being sampled for measuring S. 
-df = read.csv("data/processed_data.csv")
+df = read.csv(data_location)
 
 target_trial = switch(
   target,
