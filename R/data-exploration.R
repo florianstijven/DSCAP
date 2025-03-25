@@ -34,7 +34,7 @@ df = df %>%
 # For computing the limits of detection, we need to use the original data. In
 # the processed data, titer values have been modified to reflect the limits of
 # detection.
-df_original = read.csv("data/CrossProtocolData_moderna_tgt_FINAL.csv")
+df_original = read.csv("data/CrossProtocolData.csv")
 
 # Add label for the trials.
 df_original = df_original %>%
@@ -70,8 +70,9 @@ lod_original = df_original %>%
 ## Distribution of Risk Score  ----------------------------------------
 
 df %>%
-  ggplot(aes(x = risk_score, y = trial)) +
-  geom_boxplot(position = "identity", color = "black", fill = "gray") +
+  mutate(Treatment = ifelse(vax == 1, "Vaccine", "Placebo")) %>%
+  ggplot(aes(x = risk_score, y = trial, fill = Treatment)) +
+  geom_boxplot(color = "black") +
   ylab("Trial") +
   xlab("Risk Score")
 

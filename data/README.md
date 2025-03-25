@@ -2,13 +2,16 @@
 
 This directory contains the two Rscripts. 
 
-* `data-preparation.R` reads in the original data (which are not included in this repo) and processes these data for analysis.
+* `read_data.R` reads in and combines the data sets from the different COVID-19 trials. The combined data set is saved as
+`CrossProtocolData.csv` (which is not included in the repo).
+* `data-preparation.R` processes `CrossProtocolData.csv` for analysis.
 The processed data are saved as `processed_data.csv`, which are again not
 included in this repo.
-* `generate-synthetic-data.R` reads in `processed_data.csv` and generates a 
-synthetic data set `processed_data_synthetic.csv` with the same structure as 
+* `generate-synthetic-data.R` reads in `processed_data.csv` and generates a
+synthetic data set `processed_data_synthetic.csv` with the same structure as
 `processed_data.csv`. This script also generates figures and tables that compare
-the original with the synthetic data. These are saved in `original-vs-synthetic-data/`
+the original with the synthetic data. These are saved in
+`original-vs-synthetic-data/`
 
 # Data
 

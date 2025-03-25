@@ -76,6 +76,7 @@ method.ini <- c(
   "",
   "",
   "",
+  "",
   "parametric"
 )
 
@@ -127,6 +128,7 @@ synthetic_df = lapply(
     BMI_normal = ifelse(BMI_stratum == "Normal", 1, 0),
     BMI_overweight = ifelse(BMI_stratum == "Overweight", 1, 0),
     BMI_obese = ifelse(BMI_stratum == "Obese", 1, 0),
+    BMI_underweight_normal = BMI_underweight + BMI_normal
   ) %>%
   # Remove helper variables that were not present in the original data from
   # which we started in this script.

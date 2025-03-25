@@ -4,7 +4,7 @@ library(dplyr)
 
 # Load the data set. Wstratum refers to the strata that determine the
 # probability of being sampled for measuring S. 
-df = read.csv("data/CrossProtocolData_moderna_tgt_FINAL.csv") %>% 
+df = read.csv("data/CrossProtocolData.csv") %>% 
   mutate(Wstratum = as.factor(Wstratum)) %>%
   droplevels() 
 
@@ -60,14 +60,12 @@ df = df %>%
     -CalendarDateEnrollment,
     -ph1,
     -WhiteNonHispanic,
-    -STUDYID,
-    -USUBJID, 
-    -protocol, 
-    -hd_mean,
     -Country, 
-    -SUBJID, 
     -EarlyInd,
     -TTY,
+    -Y.,
+    -TTY.,
+    -CalendarDate2,
     -Sex,
     -Wstratum
   )
@@ -121,7 +119,7 @@ df = df %>%
 
 # Remove variables that are used in any of the current analyses.
 df = df %>%
-  select(-wt.est, -BMI)
+  select(-w, -BMI)
 
 
 # Save processed data set.
