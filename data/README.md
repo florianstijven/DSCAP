@@ -7,7 +7,8 @@ The processed data are saved as `processed_data.csv`, which are again not
 included in this repo.
 * `generate-synthetic-data.R` reads in `processed_data.csv` and generates a 
 synthetic data set `processed_data_synthetic.csv` with the same structure as 
-`processed_data.csv`. 
+`processed_data.csv`. This script also generates figures and tables that compare
+the original with the synthetic data. These are saved in `original-vs-synthetic-data/`
 
 # Data
 
