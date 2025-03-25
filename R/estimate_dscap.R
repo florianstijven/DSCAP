@@ -414,8 +414,7 @@ m_est = m_estimate(
   roots = theta,
   compute_roots = FALSE,
   deriv_control = setup_deriv_control(method = "simple"),
-  compute_vcov = TRUE,
-  big_data = TRUE
+  compute_vcov = TRUE
 )
 
 vcov_m_est <- data.frame(vcov(m_est))
