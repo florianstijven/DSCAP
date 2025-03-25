@@ -59,4 +59,5 @@ data/*.csv
 # Results
 results/*/*.csv
 *.Rout
+*.out
 
