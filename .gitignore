@@ -58,4 +58,6 @@ data/*.csv
 
 # Results
 results/*/*.csv
+*.Rout
+*.txt
 
