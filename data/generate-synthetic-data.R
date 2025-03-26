@@ -94,12 +94,23 @@ sds_list = purrr::pmap(
     Y = strata_tbl$Y
   ),
   .f = function(trial, vax, Y) {
+    # In the placebo group, we should not generate Ab titers since they are
+    # constant by definition.
+    if (vax == 0) {
+      visit.sequence.ini_temp = visit.sequence.ini[-c(6, 7)]
+      method.ini_temp = method.ini
+      method.ini_temp[2:3] = ""
+      
+    } else {
+      visit.sequence.ini_temp = visit.sequence.ini
+      method.ini_temp = method.ini
+    }
     data_temp = df %>%
       filter(trial.lbl == .env$trial, vax == .env$vax, Y == .env$Y)
     sds <- syn(
       data = data_temp,
-      visit.sequence = visit.sequence.ini,
-      method = method.ini,
+      visit.sequence = visit.sequence.ini_temp,
+      method = method.ini_temp,
       m = 1,
       # Variables that are not predicted are kept in the synthetic data set.
       drop.not.used = FALSE,
@@ -139,10 +150,37 @@ synthetic_df = lapply(
 # rules, while we want to keep those variables fixed.
 synthetic_df = synthetic_df %>%
   mutate(
-    bindSpike = ifelse((Delta == 0) & vax == 1, NA, bindSpike),
+    bindSpike = ifelse((Delta == 0) & (vax == 1), NA, bindSpike),
     pseudoneutid50 = ifelse((Delta == 0) &
-                              vax == 1, NA, pseudoneutid50),
+                              (vax == 1), NA, pseudoneutid50),
     A = ifelse(vax == 0, 0, A)
+  )
+
+# For some reason, NAs are generated for the titers in the synthetic data. 
+synthetic_df %>%
+  filter(Delta == 1, is.na(bindSpike))
+
+# No such NAs are present in the original data. 
+df %>%
+  filter(Delta == 1, is.na(bindSpike))
+
+# We solve this by replacing the NAs with a randomly sampled variable. 
+synthetic_df = synthetic_df %>%
+  mutate(
+    bindSpike = ifelse(
+      is.na(bindSpike) &
+        Delta == 1 &
+        vax == 1,
+      runif(min = 0.75, max = 1, n = 1),
+      bindSpike
+    ),
+    pseudoneutid50 = ifelse(
+      is.na(pseudoneutid50) &
+        Delta == 1 &
+        vax == 1,
+      runif(min = 0.5, max = 1, n = 1),
+      pseudoneutid50
+    )
   )
 
 # Compare the synthetic and original data in terms of case-cohort sampling and
