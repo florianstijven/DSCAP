@@ -69,9 +69,9 @@ if (mnum == 1) {
 } else if (mnum == 2) {
   # Drop three trials.
   df <- df %>% filter(!(
-    trial.lbl %in% c("J&J (Brazil)", "J&J (Colombia)")
+    trial.lbl %in% c("Novavax", "J&J (Colombia)")
   ))  %>%
-    mutate(trial = droplevels(trial)) #drop AZ, J&J S.Af 
+    mutate(trial = droplevels(trial)) #drop 
 }
 
 # If target trial is not in the set of trials in the selected data, raise an
