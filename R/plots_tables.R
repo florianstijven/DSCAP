@@ -302,7 +302,7 @@ all_results_tbl %>%
   filter(is.na(trial)) %>%
   filter(
     target == .env$target,
-  (truncation == 1) & (modn == 2)
+  ((truncation == 1) & (modn == 2)) | ((truncation == 0) & (modn == 1))
   ) %>%
   mutate(modn = ifelse(modn == 1, "8-trial analysis", "6-trial analysis")) %>%
   select(modn, type, estimand, estimate, CI_lower, CI_upper, CI_lower_bs, CI_upper_bs, surr_type) %>%
