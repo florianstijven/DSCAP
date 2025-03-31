@@ -90,7 +90,7 @@ p3002 = read.csv(p3002_file) %>% filter(Bserostatus == 0) %>%
     protocol = "p3002"
   )
 
-# Novavax
+# J&J
 p3003 = read.csv(p3003_file) %>% filter(Bserostatus == 0) %>%
   dplyr::select(
     Ptid,
@@ -130,7 +130,7 @@ p3003 = read.csv(p3003_file) %>% filter(Bserostatus == 0) %>%
     protocol = "p3003"
   )
 
-# J&J
+# Novavax
 p3004 = read.csv(p3004_file) %>% filter(Bserostatus == 0) %>%
   dplyr::select(
     Ptid,
