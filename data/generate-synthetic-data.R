@@ -2,7 +2,7 @@ library(synthpop)
 library(tidyverse)
 
 # Set seed for reproducibility.
-set.seed(1)
+set.seed(123)
 
 # Location to save figures/tables comparing the original and synthetic data.
 results_dir = "data/original-vs-synthetic-data/"
@@ -182,6 +182,35 @@ synthetic_df = synthetic_df %>%
       pseudoneutid50
     )
   )
+
+# Set the universal lower limits of detection for binding and neutralizing
+# antibody titers.
+llod_spike = log(10.84, base = 10)
+llod_neut = log(2.61, base = 10)
+# Observed values below the LLOD will be truncated the the LLOD divided by 2.
+llod_spike_truncated = log(10.84 / 2, base = 10)
+llod_neut_truncated = log(2.61 / 2, base = 10)
+
+
+# Set all values of placebo to the LLOD divided by 2.
+synthetic_df <- synthetic_df %>% mutate(bindSpike = ifelse(A == 0, llod_spike_truncated, bindSpike))
+synthetic_df <- synthetic_df %>% mutate(pseudoneutid50 = ifelse(A == 0, llod_neut_truncated, pseudoneutid50))
+
+# Patients with measured titers, who have a titer below the LLOD, will have
+# their measurement truncated to the LLOD divided by 2.
+synthetic_df <- synthetic_df %>% mutate(bindSpike = ifelse(
+  Delta == T &
+    bindSpike < llod_spike,
+  llod_spike_truncated,
+  bindSpike
+))
+synthetic_df <- synthetic_df %>% mutate(
+  pseudoneutid50 = ifelse(
+    Delta == T & pseudoneutid50 < llod_neut,
+    llod_neut_truncated,
+    pseudoneutid50
+  )
+)
 
 # Compare the synthetic and original data in terms of case-cohort sampling and
 # the number of events.
