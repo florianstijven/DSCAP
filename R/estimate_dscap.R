@@ -67,9 +67,9 @@ if (mnum == 1) {
   # No trials are dropped.
   df <- df
 } else if (mnum == 2) {
-  # Drop three trials.
+  # Drop two trials.
   df <- df %>% filter(!(
-    trial.lbl %in% c("Novavax", "J&J (Colombia)")
+    trial.lbl %in% c("J&J (Brazil)", "J&J (Colombia)")
   ))  %>%
     mutate(trial = droplevels(trial)) #drop 
 }
