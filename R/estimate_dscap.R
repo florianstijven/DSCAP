@@ -69,7 +69,7 @@ if (mnum == 1) {
 } else if (mnum == 2) {
   # Drop two trials.
   df <- df %>% filter(!(
-    trial.lbl %in% c("J&J (Brazil)", "J&J (Colombia)")
+    trial.lbl %in% c("J&J (Brazil)", "J&J (Colombia)", "Novavax")
   ))  %>%
     mutate(trial = droplevels(trial)) #drop 
 }
