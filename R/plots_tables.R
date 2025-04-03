@@ -149,7 +149,6 @@ ma_plot = function(modn = 1, bootstrap = FALSE, estimate_weights = TRUE, target,
   # is set to a negative value in the 8-trial analyses because the standardized
   # estimates may be negative there. 
   if (modn == 1) y_lims = c(-0.5, 1) else y_lims = c(0, 1)
-  
   # Plot for binding Ab.
   ma_ggplot = plotting_data %>%
     filter(modn == .env$modn) %>%
@@ -192,8 +191,9 @@ ma_plot = function(modn = 1, bootstrap = FALSE, estimate_weights = TRUE, target,
     ylab(expression(tilde( ~ tau) ^ a ~ " (VE)")) +
     facet_grid(surr_type~type) +
     labs(shape = "Trial") +
-    theme(legend.position = "bottom")
-  
+    theme(legend.position = "bottom") +
+    guides(color = guide_legend(nrow = 2, byrow = TRUE),
+           shape = guide_legend(nrow = 2, byrow = TRUE))
   return(ma_ggplot)
 }
 

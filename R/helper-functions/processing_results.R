@@ -27,7 +27,7 @@ trial_name_convert = function(modified_name) {
 # Helper function to read in all results for a single analysis. 
 read_results = function(target, modn, surr_type, estimate_weights, nX, truncation) {
   # Position of parameters in the estimated covariance matrix ----
-  n_trials = ifelse(modn == 1, 8, 6)
+  n_trials = ifelse(modn == 1, 8, 5)
   # First position of the treatment effect parameters.
   trt_effect_start = (2 * n_trials * nX - nX) 
   # Position of parameters corresponding to the standardized mean clinical
