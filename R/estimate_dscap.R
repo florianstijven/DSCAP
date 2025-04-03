@@ -377,7 +377,7 @@ if (estimate_weights & problem_weights) {
     mutate(CC_stratum = ifelse(CC_stratum %in% problematic_strata, "Placebo", CC_stratum))
   
   # The models and weights are re-estimated, now with the modified weight
-  # strata. Note that all results remaind unchanged, except that there is now
+  # strata. Note that all results remain unchanged, except that there is now
   # one weight stratum fewer.
   RESULT <- RunDSCAP(
     data = df,

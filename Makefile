@@ -44,6 +44,3 @@ R/spike_AZ_truncated_M2_estwts.Rout: $(helpers) $(data)
 R/plots_tables.Rout: R/neut_AZ_full_M1_estwts.Rout R/spike_AZ_full_M1_estwts.Rout \
 	R/neut_AZ_truncated_M2_estwts.Rout R/spike_AZ_truncated_M2_estwts.Rout
 	Rscript --verbose R/plots_tables.R AZ > $@ 2> $@
-	
-
-	
