@@ -38,6 +38,11 @@ plot_parameters_tbl = expand_grid(
   truncation
 )
 
+# We only have truncation in combination with the five-trial analysis.
+plot_parameters_tbl = plot_parameters_tbl %>%
+  filter(truncation == (modn - 1))
+
+
 target_trial = switch(
   target,
   jjsa = "J&J (S. America)",
