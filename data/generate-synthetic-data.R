@@ -2,7 +2,7 @@ library(synthpop)
 library(tidyverse)
 
 # Set seed for reproducibility.
-set.seed(123)
+set.seed(2)
 
 # Location to save figures/tables comparing the original and synthetic data.
 results_dir = "data/original-vs-synthetic-data/"
@@ -32,7 +32,8 @@ df = df %>%
   mutate(
     bindSpike = ifelse((Delta == 0) & (vax == 1), NA, bindSpike),
     pseudoneutid50 = ifelse((Delta == 0) &
-                              (vax == 1), NA, pseudoneutid50)
+                              (vax == 1), NA, pseudoneutid50),
+    Delta = as.integer(Delta)
   )
 
 
@@ -45,8 +46,8 @@ codebook.syn(df)
 # kept unchanged.
 visit.sequence.ini <- c(
   "Delta",
-  "age.geq.65",
   "BMI_stratum",
+  "age.geq.65",
   "risk_score",
   "Age",
   "bindSpike",
@@ -62,8 +63,8 @@ method.ini <- c(
   "",
   "parametric",
   "parametric",
-  "parametric",
-  "parametric",
+  "satcat",
+  "satcat",
   "",
   "",
   "parametric",
@@ -77,7 +78,7 @@ method.ini <- c(
   "",
   "",
   "",
-  "parametric"
+  "satcat"
 )
 
 # Generate synthetic data set. The variables are generated in each trial
@@ -143,7 +144,8 @@ synthetic_df = lapply(
   ) %>%
   # Remove helper variables that were not present in the original data from
   # which we started in this script.
-  select(-BMI_stratum)
+  select(-BMI_stratum) %>%
+  mutate(Delta = Delta == 1)
 
 # Apply the missing data rules to the synthetic data. In principle, the syn()
 # function can handle this. However, it samples the variables involved in the
