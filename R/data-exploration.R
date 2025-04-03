@@ -10,6 +10,14 @@ tables_dir = "results/tables/"
 library(tidyverse)
 library(patchwork)
 
+# Set the universal lower limits of detection for binding and neutralizing
+# antibody titers.
+llod_spike = log(10.84, base = 10)
+llod_neut = log(2.61, base = 10)
+# Observed values below the LLOD will be truncated the the LLOD divided by 2.
+llod_spike_truncated = log(10.84 / 2, base = 10)
+llod_neut_truncated = log(2.61 / 2, base = 10)
+
 ## Load data and Prepare for Analysis -----------------------------------
 
 # Load the data set. Wstratum refers to the strata that determine the
@@ -55,15 +63,6 @@ df_original = df_original %>%
     }
   ))
 
-lod_original = df_original %>%
-  filter(A != 0, Delta == 1) %>%
-  group_by(protocol) %>%
-  summarise(
-    "LLOQ IgG Spike" = 10 ** min(bindSpike),
-    "ULOQ IgG Spike" = 10 ** max(bindSpike),
-    "LLOQ nAb ID50" = 10 ** min(pseudoneutid50),
-    "ULOQ nAb ID50" = 10 ** max(pseudoneutid50)
-  )
   
 # Figures -------------------------------------------------------------
 
@@ -92,15 +91,6 @@ ggsave(
 # vertical dashed lines. In the data used in the final analyses, titers below
 # and above these cut-offs are truncated to the respective cut-off values.
 
-# Compute LODs for each trial and type of surrogate.
-LOD <- df_original %>% group_by(protocol) %>% dplyr::summarise(
-  LLOD.Spike = min(bindSpike, na.rm = T),
-  LLOD.Neut = min(pseudoneutid50, na.rm = T)
-)
-
-# Maximum LOQs across all trials. 
-maxLLODSpike <- max(LOD$LLOD.Spike)
-maxLLODNeut <- max(LOD$LLOD.Neut)
 
 # Plot for binding Ab.
 bAb_plot = df_original %>%
@@ -110,7 +100,7 @@ bAb_plot = df_original %>%
                color = "black",
                fill = "gray") +
   geom_vline(
-    xintercept = c(maxLLODSpike),
+    xintercept = c(llod_spike),
     color = "gray",
     linetype = "dashed"
   ) +
@@ -125,7 +115,7 @@ nAb_plot = df_original %>%
                color = "black",
                fill = "gray") +
   geom_vline(
-    xintercept = c(maxLLODNeut),
+    xintercept = c(llod_neut),
     color = "gray",
     linetype = "dashed"
   ) +
