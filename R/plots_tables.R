@@ -153,7 +153,8 @@ ma_plot = function(modn = 1, bootstrap = FALSE, estimate_weights = TRUE, target,
   ma_ggplot = plotting_data %>%
     filter(modn == .env$modn) %>%
     mutate(surr_type = ifelse(surr_type == "spike", "Binding Ab", "Neutralizing Ab"),
-           type = ifelse(type == "naive", "Naive", "Standardized")) %>%
+           type = ifelse(type == "naive", "Unstandardized", "Standardized"),
+           type = factor(type, levels = c("Unstandardized", "Standardized"))) %>%
     ggplot(aes(
       x = mean_diff_S,
       y = VE,
