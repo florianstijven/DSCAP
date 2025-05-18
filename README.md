@@ -23,7 +23,7 @@ of `data/processed_data_synthetic.csv`. Reproducibility is also facilitated
 through the use of the `renv` R package.
 
 Since the analyses are computationally intensive, we ran the analysis on a
-computing cluster, for which we used the `run-analysis.sh` batch script. If
+computing cluster, for which we used the `runanalysis.sh` batch script. If
 these analyses are run on a personal computer, there should be enough RAM
 available because the sandwich estimator based on the `geex` R package is greedy
 in its use of RAM. Running the Makefile is expected to take 10 hours on a recent
