@@ -1,6 +1,6 @@
 # DSCAP - Doubly Standardized Causal Association Parameters
 
-This repository contains the code used for the analyses in *add ref*.
+This repository contains the code used for the analyses in Rosin, S. P., Stijven, F., Cross, K. A., Shook-Sa, B. E., Hudgens, M. G., & Gilbert, P. B. (n.d.). Doubly standardized trial-level surrogate endpoint evaluation, with application to vaccine trials.
 
 ## Project Structure
 
