@@ -8,6 +8,8 @@
 #SBATCH -A lp_doctoralresearch
 
 module load cluster/wice/batch
+module load CMake
+module load GSL
 module load R/4.3.2-foss-2022b
 
 
