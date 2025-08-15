@@ -6,9 +6,10 @@
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH -A lp_doctoralresearch
 
-module use /apps/leuven/rocky8/icelake/2024a/modules/all/
-
-module load R
+module use /apps/leuven/rocky8/icelake/2023b/modules/all/
+module load GSL
+module load CMake
+module load R-bundle-CRAN/2024.06-foss-2023b
 
 export OMP_NUM_THREADS=1
 
