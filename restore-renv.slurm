@@ -8,7 +8,8 @@
 #SBATCH -A lp_doctoralresearch
 
 module load cluster/wice/batch
-module load R/4.4.2-gfbf-2024a
+module load R/4.3.2-foss-2022b
+
 
 export OMP_NUM_THREADS=1
 
