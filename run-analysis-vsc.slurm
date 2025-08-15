@@ -8,6 +8,9 @@
 
 export OMP_NUM_THREADS=1
 
+module use /apps/leuven/rocky8/icelake/2024a/modules/all/
+module load GSL
+module load CMake
 module load R
 
 Rscript -e "renv::restore()"
