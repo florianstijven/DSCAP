@@ -9,6 +9,9 @@
 
 module load cluster/genius/batch
 module load R/4.4.2-gfbf-2024a
+module load GSL
+module load CMake
+
 
 
 export OMP_NUM_THREADS=1
