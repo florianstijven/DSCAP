@@ -12,8 +12,7 @@ module load R
 
 export OMP_NUM_THREADS=1
 
-Rscript -e "renv::reinstall('KernSmooth')"
-Rscript -e "renv::restore()"
+Rscript -e "unlink(renv::paths$library(), recursive = TRUE); renv::restore(build = TRUE)"
 
 
 
