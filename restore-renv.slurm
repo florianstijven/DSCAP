@@ -2,14 +2,13 @@
 #SBATCH --job-name=dscap-restore
 #SBATCH --ntasks=1 --cpus-per-task=2
 #SBATCH --time=1:00:00
-#SBATCH --clusters=wice
+#SBATCH --cluster=wice
 #SBATCH --partition=batch
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH -A lp_doctoralresearch
 
-module load GSL
-module load CMake
-module load R
+module load cluster/wice/batch
+module load R/4.4.2-gfbf-2024a
 
 export OMP_NUM_THREADS=1
 
