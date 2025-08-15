@@ -8,6 +8,8 @@
 
 export OMP_NUM_THREADS=1
 
+module load R
+
 Rscript -e "renv::restore()"
 
 make all -j 8
