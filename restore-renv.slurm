@@ -8,9 +8,9 @@
 #SBATCH -A lp_doctoralresearch
 
 module load cluster/wice/batch
-module load nloptr
 module load NLOPT
 module load R
+module load nloptr
 
 export OMP_NUM_THREADS=1
 
