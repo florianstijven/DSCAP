@@ -8,9 +8,8 @@
 #SBATCH -A lp_doctoralresearch
 
 module load cluster/wice/batch
-module load NLOPT
-module load R
-module load nloptr
+module load NLopt
+module load R/4.4.2-gfbf-2024a
 
 export OMP_NUM_THREADS=1
 
