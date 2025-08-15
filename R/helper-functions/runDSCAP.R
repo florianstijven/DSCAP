@@ -9,7 +9,7 @@ RunDSCAP <- function(data,
   # Determine which level of the trial factor corresponds to the target trial. 
   target_trial_level_n = which(levels(data$trial) == target_trial)
   
-
+  
   n_trials <- length(levels(data$trial))
   
   # Re-estimate weights if required.
@@ -46,7 +46,7 @@ RunDSCAP <- function(data,
     df = df  %>%
       filter(!(CC_stratum %in% problematic_strata))
   }
-
+  
   
   glm_fits_df = df %>%
     mutate(trial_modified = ifelse(A == 0, "Placebo", as.character(trial)),
@@ -71,7 +71,7 @@ RunDSCAP <- function(data,
       glm_coef_Y = purrr::map(glm_fit_Y, coef),
       glm_coef_S = purrr::map(glm_fit_S, coef)
     )
-
+  
   # For each subject in the target trial, we predict the outcome using the model
   # estimated in any of the other trials.
   target_trial_df = df %>% 
@@ -108,7 +108,7 @@ RunDSCAP <- function(data,
       )
     ) %>%
     select(trial_modified, mean_Y, mean_S)
-
+  
   # Compute the naive trial-specific means. 
   naive_means_df = df %>%
     mutate(S = ifelse(is.na(S), 0, S)) %>%
@@ -172,7 +172,7 @@ RunDSCAP <- function(data,
       cor_s = cor(VE_est, mean_diff_S_est, method = "spearman"),
       beta = coef(lm(VE_est ~ mean_diff_S_est))[2]
     )
-
+  
   cor_standardized_df = standardized_trt_effects_df %>%
     group_by() %>%
     summarize(
@@ -213,7 +213,7 @@ extract_coefs = function(obj, estimate_weights) {
     filter(trial_modified != "Placebo") %>%
     pull(trial_modified) %>%
     as.character()
-
+  
   # Extract coefficients of the outcome regression models for Y.
   ncov = length(obj$glm_fits_df$glm_coef_Y[[1]])
   coefs_vec_Y = obj$glm_fits_df %>%
@@ -246,7 +246,7 @@ extract_coefs = function(obj, estimate_weights) {
     filter(trial == obj$target_trial, vax == 1) %>%
     pull(mean_Y)
   names(target_trial_mean_Y) = paste("mean_Y", target_trial, sep = " - ")
-
+  
   target_trial_mean_S = obj$naive_means_df %>%
     filter(trial == obj$target_trial, vax == 1) %>%
     pull(mean_S)
@@ -293,10 +293,146 @@ extract_coefs = function(obj, estimate_weights) {
       # corresponding weight is thus always treated as known.
       filter(CC_stratum != "Placebo") %>% 
       pull(weight, name = CC_stratum)
-
+    
     estimates_vec = c(estimates_vec, 1 / estimated_weights)
   }
   return(estimates_vec)
 }
+
+
+extract_coefs_naive = function(data,
+                               estimate_weights = FALSE, trials_chr) {
+  
+  n_trials <- length(trials_chr)
+  
+  # Re-estimate weights if required.
+  if (estimate_weights) {
+    df <- df %>% group_by(CC_stratum) %>% mutate(prop.delta = sum(Delta == 1) /
+                                                   n(),
+                                                 weight = 1 / prop.delta) %>%
+      dplyr::select(-prop.delta) %>%
+      # PLacebo patients should get a weight of one.
+      mutate(weight = ifelse(A == 0, 1, weight))
+  }
+  
+  # Data frame that contains the estimated weight for each category in
+  # `CC_stratum`.
+  weights_df = df %>%
+    group_by(CC_stratum) %>%
+    slice_head(n = 1) %>%
+    select(CC_stratum, weight)
+  
+  problematic_strata = NA
+  if (any(weights_df$weight == Inf)) {
+    problematic_strata = weights_df %>%
+      filter(weight == Inf) %>%
+      pull(CC_stratum)
+    warning(paste0(
+      paste(
+        c("Estimated weight(s) of Inf for strata", problematic_strata),
+        collapse = " "
+      ),
+      ". Corresponding observations are ignored for this analysis."
+    ))
+    weights_df = weights_df %>%
+      filter(!(CC_stratum %in% problematic_strata))
+    df = df  %>%
+      filter(!(CC_stratum %in% problematic_strata))
+  }
+  
+  
+  # Compute the naive trial-specific means. 
+  naive_means_df = data %>%
+    mutate(S = ifelse(is.na(S), 0, S)) %>%
+    group_by(trial, vax) %>%
+    summarise(
+      mean_Y = mean(Y),
+      n = n(),
+      # n_obs = sum(!is.na(S)),
+      # probs_obs = mean(!is.na(S)),
+      # mean_weight = mean(ifelse(!is.na(S), weight, NA), na.rm = TRUE),
+      mean_S = mean(weight * S),
+      var_S = var(weight * S) 
+    )
+  
+  # Compute treatment effects from the estimated means.  
+  naive_trt_effects_df = naive_means_df %>%
+    pivot_wider(
+      names_from = c("vax"),
+      values_from = c("mean_Y", "n", "mean_S", "var_S")
+    ) %>%
+    mutate(
+      VE_est = 1 - mean_Y_1 / mean_Y_0,
+      mean_diff_S_est = mean_S_1 - mean_S_0
+    )
+  
+  
+  # Compute the measures of surrogacy based on the naive trial-specific and
+  # standardized treatment effect estimates.
+  cor_naive_df = naive_trt_effects_df %>%
+    group_by() %>%
+    summarize(
+      cor_p = cor(VE_est, mean_diff_S_est, method = "pearson"),
+      beta = coef(lm(VE_est ~ mean_diff_S_est))[2]
+    )
+  
+  # Mean estimates for the clinical outcome in the placebo groups.
+  mean_Y_placebo = naive_means_df %>%
+    filter(vax == 0) %>%
+    # Ensure that the extracted values will be in the same order as
+    # `trials_chr`.
+    right_join(tibble(trial = trials_chr)) %>%
+    pull(mean_Y)
+  names(mean_Y_placebo) = paste("mean_Y_placebo", trials_chr, sep = " - ")
+  
+  # Mean estimates for the clinical outcome in the active group.
+  mean_Y_active = naive_means_df %>%
+    filter(vax == 1) %>%
+    # Ensure that the extracted values will be in the same order as
+    # `trials_chr`.
+    right_join(tibble(trial = trials_chr)) %>%
+    pull(mean_Y)
+  names(mean_Y_active) = paste("mean_Y_active", trials_chr, sep = " - ")
+  
+  mean_S_active =  naive_means_df %>%
+    filter(vax == 1) %>%
+    # Ensure that the extracted values will be in the same order as
+    # `trials_chr`.
+    right_join(tibble(trial = trials_chr)) %>%
+    pull(mean_S)
+  names(mean_S_active) = paste("mean_S_active", trials_chr, sep = " - ")
+  
+  # Extract VE estimates.
+  VE_est = naive_trt_effects_df %>%
+    # Ensure the correct ordering of trials.
+    right_join(tibble(trial = trials_chr)) %>%
+    pull(VE_est)
+    
+  names(VE_est) = paste("VE_est", trials_chr, sep = " - ")
+  
+  # Extract estimated Pearson correlation and regression slope.
+  cor_p = cor_naive_df %>%
+    pull(cor_p)
+  names(cor_p) = "cor_p"
+  beta = cor_naive_df %>%
+    pull(beta)
+  names(beta) = "beta"
+  
+  # Join all estimates.
+  estimates_vec = c(mean_Y_placebo, mean_Y_active, mean_S_active, VE_est, cor_p, beta)
+  # If the weights are treated as being estimated, they are included in the
+  # returned vector of estimates.
+  if (estimate_weights) {
+    estimated_weights = weights_df %>%
+      # The weight for placebo patients is known anyhow, the
+      # corresponding weight is thus always treated as known.
+      filter(CC_stratum != "Placebo") %>%
+      pull(weight, name = CC_stratum)
+    
+    estimates_vec = c(estimates_vec, 1 / estimated_weights)
+  }
+  return(estimates_vec)
+}
+
 
 

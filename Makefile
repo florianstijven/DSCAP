@@ -4,7 +4,7 @@ B = 2000
 helpers = R/helper-functions/estFUN.R R/helper-functions/runDSCAP.R
 # Filename of the processed data. This can either be the original processed data
 # or the synthetic processed data. 
-data = data/processed_data_synthetic.csv
+data = data/processed_data.csv
 # Formula for the logistic and linear regression models used for standardizing 
 #treatment effects to the target trial.
 formula = risk_score+age.geq.65+riskxage+BMI_underweight_normal
