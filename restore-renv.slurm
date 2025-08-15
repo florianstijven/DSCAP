@@ -7,6 +7,7 @@
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH -A lp_doctoralresearch
 
+module load cluster/genius/batch
 module load R
 
 
