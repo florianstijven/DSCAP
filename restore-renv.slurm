@@ -13,7 +13,8 @@ module load R-bundle-CRAN/2024.06-foss-2023b
 
 export OMP_NUM_THREADS=1
 
-Rscript -e 'options(pkgType = "source"); renv::restore(rebuild = TRUE)'
+Rscript -e 'renv::rebuild("KernSmooth", type = "source")'
+Rscript -e 'renv::rebuild(type = "source")'
 
 
 
