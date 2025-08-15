@@ -13,8 +13,7 @@ module load R
 
 export OMP_NUM_THREADS=1
 
-Rscript -e 'renv::rebuild("KernSmooth", type = "source")'
-Rscript -e 'renv::rebuild(type = "source")'
+Rscript -e 'options(pkgType = "source"); renv::restore()'
 
 
 
