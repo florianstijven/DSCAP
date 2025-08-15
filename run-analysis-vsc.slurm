@@ -1,17 +1,18 @@
 #!/bin/bash
-#SBATCH --job-name=dscap
+#SBATCH --job-name=dscap-restore
 #SBATCH --ntasks=1 --cpus-per-task=36
-#SBATCH --time=6:00:00
-#SBATCH --clusters=wice
+#SBATCH --time=10:00:00
+#SBATCH --cluster=wice
 #SBATCH --partition=batch
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH -A lp_doctoralresearch
 
-export OMP_NUM_THREADS=1
-
-module load GSL
-module load CMake
+module load cluster/wice/batch
+module load NLOPT
 module load R
+module load nloptr
+
+export OMP_NUM_THREADS=1
 
 Rscript -e "renv::restore()"
 

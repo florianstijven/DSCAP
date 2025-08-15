@@ -14,7 +14,7 @@ module load nloptr
 
 export OMP_NUM_THREADS=1
 
-Rscript -e 'renv::install("lme4@1.1-36", type = "source")'
+# Rscript -e 'renv::install("lme4@1.1-36", type = "source")'
 Rscript -e 'options(pkgType = "source"); renv::restore()'
 
 
