@@ -25,18 +25,18 @@ all: R/neut_AZ_full_M1_estwts.Rout R/spike_AZ_full_M1_estwts.Rout \
 
 # Analyses with all trials. 
 
-R/neut_AZ_full_M1_estwts.Rout: $(helpers) $(data)
+R/neut_AZ_full_M1_estwts.Rout: R/estimate_dscap.R $(helpers) $(data)
 	Rscript --verbose R/estimate_dscap.R neut AZ $(formula) 1 $(B) $(B) 1 0 $(data) > $@ 2> $@
 	
-R/spike_AZ_full_M1_estwts.Rout: $(helpers) $(data)
+R/spike_AZ_full_M1_estwts.Rout: R/estimate_dscap.R $(helpers) $(data)
 	Rscript --verbose R/estimate_dscap.R spike AZ $(formula) 1 $(B) $(B) 1 0 $(data) > $@ 2> $@
 	
 # Analyses with J&J (Colombia), J&J (Brazil), and Novavax left out 
 
-R/neut_AZ_truncated_M2_estwts.Rout: $(helpers) $(data)
+R/neut_AZ_truncated_M2_estwts.Rout: R/estimate_dscap.R $(helpers) $(data)
 	Rscript --verbose R/estimate_dscap.R neut AZ $(formula) 2 $(B) $(B) 1 1 $(data) > $@ 2> $@
 	
-R/spike_AZ_truncated_M2_estwts.Rout: $(helpers) $(data)
+R/spike_AZ_truncated_M2_estwts.Rout: R/estimate_dscap.R $(helpers) $(data)
 	Rscript --verbose R/estimate_dscap.R spike AZ $(formula) 2 $(B) $(B) 1 1 $(data) > $@ 2> $@
 
 
