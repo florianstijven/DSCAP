@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=dscap-restore
+#SBATCH --job-name=dscap
 #SBATCH --ntasks=1 --cpus-per-task=36
 #SBATCH --time=10:00:00
 #SBATCH --cluster=wice

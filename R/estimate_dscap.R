@@ -440,53 +440,45 @@ print(t2 - t1)
 
 # We repeat the M-estimation procedure for the unstandardized estimates. ----
 
-# Attach estimated weights to original data frame. These weights will be used if
-# the weights are treated as known for the sandwich variance estimator.
-df = df %>%
-  select(-weight) %>% left_join(RESULT$weights_df, by = "CC_stratum")
-
-# Extract estimated parameter vector that corresponds to the set of stacked
-# estimating equations.
-
 # Ordering of the trials
 trials_chr = df %>%
   pull(trial) %>%
   unique() %>%
   as.character()
-theta = extract_coefs_naive(df, estimate_weights, trials_chr)
+
+# Extract estimated parameter vector that corresponds to the set of stacked
+# estimating equations.
+theta_naive = extract_coefs_naive(df, estimate_weights, trials_chr)
 
 
 # Compute sandwich estimate
-m_est = m_estimate(
+m_est_naive = m_estimate(
   estFUN = estFUN_taudelta_naive,
   data = df[sample(1:nrow(df), size = 4e4), ],
-  outer_args = list(
-    weights_df = RESULT$weights_df,
-    trials_chr = trials_chr),
-  inner_args = list(
-    estimate_weights = estimate_weights
-  ),
-  roots = theta,
+  outer_args = list(weights_df = RESULT$weights_df, trials_chr = trials_chr),
+  inner_args = list(estimate_weights = estimate_weights),
+  roots = theta_naive,
   compute_roots = FALSE,
   deriv_control = setup_deriv_control(method = "simple"),
   compute_vcov = TRUE
 )
 
 vcov_m_est_naive <- data.frame(vcov(m_est))
-colnames(vcov_m_est_naive) = names(theta)
+colnames(vcov_m_est_naive) = names(theta_naive)
 
 
 
-outfile_vcov = paste0("results/raw-results/vcov_",
-                      antibody_type,
-                      "_",
-                      target,
-                      "_",
-                      population,
-                      "_M",
-                      mnum,
-                      "_", 
-                      outfile_wts,
-                      "_naive",
-                      ".csv")
-write.csv(vcov_m_est, outfile_vcov, row.names = FALSE)
+outfile_vcov_naive = paste0(
+  "results/raw-results/vcov_naive",
+  antibody_type,
+  "_",
+  target,
+  "_",
+  population,
+  "_M",
+  mnum,
+  "_",
+  outfile_wts,
+  ".csv"
+)
+write.csv(vcov_m_est_naive, outfile_vcov_naive, row.names = FALSE)

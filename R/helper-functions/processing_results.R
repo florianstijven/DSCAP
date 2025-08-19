@@ -26,6 +26,7 @@ trial_name_convert = function(modified_name) {
 
 # Helper function to read in all results for a single analysis. 
 read_results = function(target, modn, surr_type, estimate_weights, nX, truncation) {
+  browser()
   # Position of parameters in the estimated covariance matrix ----
   n_trials = ifelse(modn == 1, 8, 5)
   # First position of the treatment effect parameters.
@@ -54,7 +55,7 @@ read_results = function(target, modn, surr_type, estimate_weights, nX, truncatio
     jjcol = "J&J (Colombia)",
     nov = "Novavax"
   )
-
+  
   # Import results ----
   if (estimate_weights) weights_chr = "estwts" else weights_chr = "kwnwts"
   if (truncation) population = "truncated" else population = "full"
@@ -64,6 +65,7 @@ read_results = function(target, modn, surr_type, estimate_weights, nX, truncatio
   # `modn`, and `v`.
   bootstrap_df <- read.csv(paste0(raw_results_dir, "bootstrap_", analysis_infile))
   results_vcov_df <- read.csv(paste0(raw_results_dir, "vcov_", analysis_infile))
+  results_vcov_df_naive <- read.csv(paste0(raw_results_dir, "vcov_naive_", analysis_infile))
   lrt_results_df <- read.csv(paste0(raw_results_dir, "lrt_", analysis_infile))
   
   trt_effects_df = read.csv(paste0(
@@ -97,6 +99,7 @@ read_results = function(target, modn, surr_type, estimate_weights, nX, truncatio
                    tau_1_to_8_pos,
                    corr_pos)
   
+  # Extract the standard errors for the standardized analysis.
   sandwich_se_df = tibble(
     estimand = c(
       rep("mean_Y", n_trials + 1),
@@ -109,6 +112,26 @@ read_results = function(target, modn, surr_type, estimate_weights, nX, truncatio
     trial_name = colnames(results_vcov_df)[pm_positions] %>% stringr::str_remove(pattern = ".*\\.\\.\\.") %>%
       stringr::str_remove(pattern = "1"), # This last operation should be removed with the newest version of the results.
     se = results_vcov_df[pm_positions, pm_positions] %>%
+      as.matrix() %>%
+      diag() %>%
+      sqrt()
+  ) %>%
+    mutate(trial = sapply(trial_name, trial_name_convert))
+  
+  # Extract the standard errors for the naive analysis.
+  sandwich_se_df_naive = tibble(
+    estimand = c(
+      rep("mean_Y", 2 * n_trials),
+      rep("mean_diff_S", n_trials),
+      rep("VE", n_trials),
+      "rho_p",
+      "beta"
+    ),
+    type = rep("naive", 4 * n_trials + 2),
+    trial_name = colnames(results_vcov_df_naive)[1:(4 * n_trials + 2)] %>%
+      stringr::str_remove(pattern = ".*\\.\\.\\.") %>%
+      stringr::str_remove(pattern = "1"), # This last operation should be removed with the newest version of the results.
+    se = results_vcov_df_naive[1:(4 * n_trials + 2), 1:(4 * n_trials + 2)] %>%
       as.matrix() %>%
       diag() %>%
       sqrt()
@@ -140,8 +163,16 @@ read_results = function(target, modn, surr_type, estimate_weights, nX, truncatio
   
   # Attach sandwich SE estimates.
   all_results_df = all_results_df %>%
+    # SEs for the standardized analysis.
     left_join(
       sandwich_se_df %>%
+        select(-trial_name) %>%
+        mutate(trial = ifelse(estimand %in% c("rho_p", "beta"), NA, trial),
+               estimand = ifelse(estimand == "rho_p", "cor_p", estimand))
+    ) %>%
+    # SEs for the naive analysis.
+    left_join(
+      sandwich_se_df_naive %>%
         select(-trial_name) %>%
         mutate(trial = ifelse(estimand %in% c("rho_p", "beta"), NA, trial),
                estimand = ifelse(estimand == "rho_p", "cor_p", estimand))
@@ -150,9 +181,7 @@ read_results = function(target, modn, surr_type, estimate_weights, nX, truncatio
   # Compute CIs based on SE estimates.
   all_results_df = bind_rows(
     all_results_df %>%
-      filter(type == "naive"),
-    all_results_df %>%
-      filter(estimand == "VE", type == "standardized") %>%
+      filter(estimand == "VE") %>%
       mutate(
         log_RR_se = sqrt(((1 - estimate) ** -2) * se ** 2),
         # Compute CI limits on the log(1 - VE) scale.
@@ -162,13 +191,13 @@ read_results = function(target, modn, surr_type, estimate_weights, nX, truncatio
       # Transform CIs back to the VE scale.
       mutate(CI_lower = 1 - exp(CI_lower), CI_upper = 1 - exp(CI_upper)),
     all_results_df %>%
-      filter(estimand %in% c("mean_diff_S", "beta"), type == "standardized") %>%
+      filter(estimand %in% c("mean_diff_S", "beta")) %>%
       mutate(
         CI_lower = estimate - 1.96 * se,
         CI_upper = estimate + 1.96 * se
       ),
     all_results_df %>%
-      filter(estimand == "cor_p", type == "standardized") %>%
+      filter(estimand == "cor_p") %>%
       mutate(
         # Standard error on Fisher's Z scale. 
         fish_z_se = (1 / (1 - estimate ** 2)) * se,
@@ -177,9 +206,9 @@ read_results = function(target, modn, surr_type, estimate_weights, nX, truncatio
         CI_upper = tanh(atanh(estimate) + 1.96 * fish_z_se)
       ),
     all_results_df %>%
-      filter(estimand == "cor_s", type == "standardized")
+      filter(estimand == "cor_s")
   )
-
+  
   
   # Add CIs and SEs based on the bootstrap.
   all_results_df = all_results_df %>%
