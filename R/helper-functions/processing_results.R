@@ -26,7 +26,6 @@ trial_name_convert = function(modified_name) {
 
 # Helper function to read in all results for a single analysis. 
 read_results = function(target, modn, surr_type, estimate_weights, nX, truncation) {
-  browser()
   # Position of parameters in the estimated covariance matrix ----
   n_trials = ifelse(modn == 1, 8, 5)
   # First position of the treatment effect parameters.
@@ -65,7 +64,7 @@ read_results = function(target, modn, surr_type, estimate_weights, nX, truncatio
   # `modn`, and `v`.
   bootstrap_df <- read.csv(paste0(raw_results_dir, "bootstrap_", analysis_infile))
   results_vcov_df <- read.csv(paste0(raw_results_dir, "vcov_", analysis_infile))
-  results_vcov_df_naive <- read.csv(paste0(raw_results_dir, "vcov_naive_", analysis_infile))
+  results_vcov_df_naive <- read.csv(paste0(raw_results_dir, "vcov_naive", analysis_infile))
   lrt_results_df <- read.csv(paste0(raw_results_dir, "lrt_", analysis_infile))
   
   trt_effects_df = read.csv(paste0(
@@ -121,7 +120,8 @@ read_results = function(target, modn, surr_type, estimate_weights, nX, truncatio
   # Extract the standard errors for the naive analysis.
   sandwich_se_df_naive = tibble(
     estimand = c(
-      rep("mean_Y", 2 * n_trials),
+      rep("mean_Y_placebo", n_trials),
+      rep("mean_Y_active", n_trials),
       rep("mean_diff_S", n_trials),
       rep("VE", n_trials),
       "rho_p",
@@ -163,20 +163,23 @@ read_results = function(target, modn, surr_type, estimate_weights, nX, truncatio
   
   # Attach sandwich SE estimates.
   all_results_df = all_results_df %>%
-    # SEs for the standardized analysis.
-    left_join(
+    left_join(bind_rows(
+      # SEs for the standardized analysis.
       sandwich_se_df %>%
         select(-trial_name) %>%
-        mutate(trial = ifelse(estimand %in% c("rho_p", "beta"), NA, trial),
-               estimand = ifelse(estimand == "rho_p", "cor_p", estimand))
-    ) %>%
-    # SEs for the naive analysis.
-    left_join(
+        mutate(
+          trial = ifelse(estimand %in% c("rho_p", "beta"), NA, trial),
+          estimand = ifelse(estimand == "rho_p", "cor_p", estimand)
+        ),
+      # SEs for the naive analysis.
       sandwich_se_df_naive %>%
-        select(-trial_name) %>%
-        mutate(trial = ifelse(estimand %in% c("rho_p", "beta"), NA, trial),
-               estimand = ifelse(estimand == "rho_p", "cor_p", estimand))
-    )
+      select(-trial_name) %>%
+        mutate(
+          trial = ifelse(estimand %in% c("rho_p", "beta"), NA, trial),
+          estimand = ifelse(estimand == "rho_p", "cor_p", estimand)
+        )
+    ))
+  
   
   # Compute CIs based on SE estimates.
   all_results_df = bind_rows(
