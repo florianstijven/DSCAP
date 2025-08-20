@@ -64,7 +64,7 @@ read_results = function(target, modn, surr_type, estimate_weights, nX, truncatio
   # `modn`, and `v`.
   bootstrap_df <- read.csv(paste0(raw_results_dir, "bootstrap_", analysis_infile))
   results_vcov_df <- read.csv(paste0(raw_results_dir, "vcov_", analysis_infile))
-  results_vcov_df_naive <- read.csv(paste0(raw_results_dir, "vcov_naive", analysis_infile))
+  results_vcov_df_naive <- read.csv(paste0(raw_results_dir, "vcov_naive_", analysis_infile))
   lrt_results_df <- read.csv(paste0(raw_results_dir, "lrt_", analysis_infile))
   
   trt_effects_df = read.csv(paste0(

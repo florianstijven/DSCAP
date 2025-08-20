@@ -463,13 +463,13 @@ m_est_naive = m_estimate(
   compute_vcov = TRUE
 )
 
-vcov_m_est_naive <- data.frame(vcov(m_est))
+vcov_m_est_naive <- data.frame(vcov(m_est_naive))
 colnames(vcov_m_est_naive) = names(theta_naive)
 
 
 
 outfile_vcov_naive = paste0(
-  "results/raw-results/vcov_naive",
+  "results/raw-results/vcov_naive_",
   antibody_type,
   "_",
   target,
