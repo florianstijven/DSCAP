@@ -144,7 +144,7 @@ df$R <- ifelse(df$trial == target_trial , 0, 1)
 # Data Analysis -----------------------------------------------------------
 
 ## Estimation -------------------------------------------------------------
-
+df = df %>% slice_sample(n = 5e3)
 # Estimate all models.
 RESULT <- RunDSCAP(
   data = df,

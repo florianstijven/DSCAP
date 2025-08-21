@@ -237,6 +237,7 @@ extract_coefs = function(obj, estimate_weights) {
   names(standardized_mean_Y) = paste("standardized_mean_Y", trials_modified_ordering, sep = " - ")
 
   standardized_mean_S = obj$standardized_means_df %>%
+    filter(trial_modified != "Placebo") %>%
     mutate(trial_modified = factor(trial_modified, trials_modified_ordering)) %>%
     arrange(trial_modified) %>%
     pull(mean_S)
@@ -254,13 +255,16 @@ extract_coefs = function(obj, estimate_weights) {
   names(target_trial_mean_S) = paste("mean_S", target_trial, sep = " - ")
   
   # Extract naive treatment effect estimate for the target trial. 
-  target_trial_VE_est = obj$standardized_trt_effects_df %>% filter(trial == obj$target_trial) %>%
+  target_trial_VE_est = obj$standardized_trt_effects_df %>% 
+    filter(trial == obj$target_trial) %>%
     pull(VE_est, name = trial)
   names(target_trial_VE_est) = paste("VE_est", target_trial, sep = " - ")
   
   # Extract standardized VE estimates. 
   standardized_VE_est = obj$standardized_trt_effects_df %>%
-    mutate(trial)%>%
+    filter(trial != target_trial) %>%
+    mutate(trial = factor(trial, trials_ordering)) %>%
+    arrange(trial) %>%
     pull(VE_est)
   names(standardized_VE_est) = paste("standardized_VE_est", trials_ordering, sep = " - ")
   
