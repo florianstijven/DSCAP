@@ -248,9 +248,9 @@ estFUN_taudelta_naive <- function(data,
                                   estimate_weights,
                                   weights_df) {
   A = data$A
-
+  
   trial_subject = as.character(data$trial)
-
+  
   n_trials = length(trials_chr)
   trial_number = which(trial_subject == trials_chr)
   
@@ -314,42 +314,43 @@ estFUN_taudelta_naive <- function(data,
     # Estimating equations for the mean clinical outcome parameters.
     clin_mean_parm_ee = rep(0, 2 * n_trials)
     clin_mean_parm_ee[clin_mean_parm_pos_subject] = Y - theta[clin_mean_parm_pos_subject]
-
-  # Estimating equations for the weighted mean surrogate outcome
-  # parameters.
-  surr_mean_parm_ee = rep(0, n_trials)
-  surr_mean_parm_ee[trial_number] = Delta * weight * (S - theta[surr_mean_parm_pos_subject])
-  
-  # Estimating equations for the treatment effect parameters for the clinical
-  # outcome (i.e., the VE).
-  tau_1_to_8_ee = (1 - (theta[(n_trials + 1):(2 * n_trials)] / theta[1:n_trials])) - theta[tau_1_to_8_pos]
-  
-  
-  # if (any(is.na(weight * surr_or_psiFUN(theta[theta_pos_surr_or])))) simpleError("NAs produced.")
-  
-  stacked_ee <- c(
-    clin_mean_parm_ee,
-    surr_mean_parm_ee,
-    tau_1_to_8_ee, #tau 1 to 8
-    # causal association pearson rho
-    cor(theta[tau_1_to_8_pos], theta[surr_mean_parm_pos]) - theta[corr_pos[1]],
-    # causal association parameter beta -- linear regression slope
-    (cov(theta[tau_1_to_8_pos], theta[surr_mean_parm_pos]) /
-       var(theta[surr_mean_parm_pos])) - theta[corr_pos[2]]
-  )
-  
-  # If weights are treated as unknown, their corresponding estimating
-  # equations are added to the set of stacked estimating equations.
-  if (estimate_weights) {
-    inv_weights_ee = rep(0, n_CC_strata)
-    stacked_ee = c(stacked_ee, inv_weights_ee)
-    if (CC_stratum != "Placebo") {
-      stacked_ee[weight_pos] = Delta - theta[weight_pos]
+    
+    # Estimating equations for the weighted mean surrogate outcome
+    # parameters.
+    surr_mean_parm_ee = rep(0, n_trials)
+    surr_mean_parm_ee[trial_number] = Delta * weight * (S - theta[surr_mean_parm_pos_subject])
+    
+    # Estimating equations for the treatment effect parameters for the clinical
+    # outcome (i.e., the VE).
+    tau_1_to_8_ee = (1 - (theta[(n_trials + 1):(2 * n_trials)] / theta[1:n_trials])) - theta[tau_1_to_8_pos]
+    
+    
+    # if (any(is.na(weight * surr_or_psiFUN(theta[theta_pos_surr_or])))) simpleError("NAs produced.")
+    
+    stacked_ee <- c(
+      clin_mean_parm_ee,
+      surr_mean_parm_ee,
+      tau_1_to_8_ee,
+      #tau 1 to 8
+      # causal association pearson rho
+      cor(theta[tau_1_to_8_pos], theta[surr_mean_parm_pos]) - theta[corr_pos[1]],
+      # causal association parameter beta -- linear regression slope
+      (cov(theta[tau_1_to_8_pos], theta[surr_mean_parm_pos]) /
+         var(theta[surr_mean_parm_pos])) - theta[corr_pos[2]]
+    )
+    
+    # If weights are treated as unknown, their corresponding estimating
+    # equations are added to the set of stacked estimating equations.
+    if (estimate_weights) {
+      inv_weights_ee = rep(0, n_CC_strata)
+      stacked_ee = c(stacked_ee, inv_weights_ee)
+      if (CC_stratum != "Placebo") {
+        stacked_ee[weight_pos] = Delta - theta[weight_pos]
+      }
     }
+    
+    return(stacked_ee)
   }
-  
-  return(stacked_ee)
-    }
 }
 
 

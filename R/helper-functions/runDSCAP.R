@@ -54,7 +54,7 @@ RunDSCAP <- function(data,
     filter(trial != target_trial) %>%
     group_by(trial_modified) %>%
     summarize(
-      glm_fit_Y = glm(formula_Y, data = pick(everything()), family = binomial, x = FALSE, y = FALSE) %>% list(),
+      glm_fit_Y = glm(formula_Y, data = pick(everything()), family = binomial, x = FALSE, y = FALSE, model = FALSE) %>% list(),
       glm_fit_S = glm(
         formula_S,
         data = pick(everything()),
@@ -62,7 +62,8 @@ RunDSCAP <- function(data,
         subset = (Delta == 1),
         weights = weight, 
         x = FALSE,
-        y = FALSE
+        y = FALSE, 
+        model = FALSE
       ) %>% list()
     ) %>%
     # Extract coefficients vectors.
@@ -229,15 +230,15 @@ extract_coefs = function(obj, estimate_weights) {
   names(coefs_vec_S) = paste(names(coefs_vec_S), rep(trials_ordering, each = ncov), sep = " - ")
   
   # Extract standardized mean estimates for Y and S. 
-  standardized_mean_Y = left_join(
-    tibble(trial_modified = trials_modified_ordering),
-    obj$standardized_means_df) %>%
+  standardized_mean_Y = obj$standardized_means_df %>%
+    mutate(trial_modified = factor(trial_modified, trials_modified_ordering)) %>%
+    arrange(trial_modified) %>%
     pull(mean_Y)
   names(standardized_mean_Y) = paste("standardized_mean_Y", trials_modified_ordering, sep = " - ")
-  
-  standardized_mean_S = left_join(
-    tibble(trial_modified = trials_ordering),
-    obj$standardized_means_df) %>%
+
+  standardized_mean_S = obj$standardized_means_df %>%
+    mutate(trial_modified = factor(trial_modified, trials_modified_ordering)) %>%
+    arrange(trial_modified) %>%
     pull(mean_S)
   names(standardized_mean_S) = paste("standardized_mean_S", trials_ordering, sep = " - ")
   
@@ -258,8 +259,8 @@ extract_coefs = function(obj, estimate_weights) {
   names(target_trial_VE_est) = paste("VE_est", target_trial, sep = " - ")
   
   # Extract standardized VE estimates. 
-  standardized_VE_est = left_join(tibble(trial = trials_ordering),
-                                  obj$standardized_trt_effects_df) %>%
+  standardized_VE_est = obj$standardized_trt_effects_df %>%
+    mutate(trial)%>%
     pull(VE_est)
   names(standardized_VE_est) = paste("standardized_VE_est", trials_ordering, sep = " - ")
   
@@ -302,7 +303,6 @@ extract_coefs = function(obj, estimate_weights) {
 
 extract_coefs_naive = function(data,
                                estimate_weights = FALSE, trials_chr) {
-  
   n_trials <- length(trials_chr)
   
   # Re-estimate weights if required.
@@ -381,7 +381,8 @@ extract_coefs_naive = function(data,
     filter(vax == 0) %>%
     # Ensure that the extracted values will be in the same order as
     # `trials_chr`.
-    right_join(tibble(trial = trials_chr)) %>%
+    mutate(trial = factor(trial, levels = trials_chr)) %>%
+    arrange(trial) %>%
     pull(mean_Y)
   names(mean_Y_placebo) = paste("mean_Y_placebo", trials_chr, sep = " - ")
   
@@ -390,7 +391,8 @@ extract_coefs_naive = function(data,
     filter(vax == 1) %>%
     # Ensure that the extracted values will be in the same order as
     # `trials_chr`.
-    right_join(tibble(trial = trials_chr)) %>%
+    mutate(trial = factor(trial, levels = trials_chr)) %>%
+    arrange(trial) %>%
     pull(mean_Y)
   names(mean_Y_active) = paste("mean_Y_active", trials_chr, sep = " - ")
   
@@ -398,14 +400,16 @@ extract_coefs_naive = function(data,
     filter(vax == 1) %>%
     # Ensure that the extracted values will be in the same order as
     # `trials_chr`.
-    right_join(tibble(trial = trials_chr)) %>%
+    mutate(trial = factor(trial, levels = trials_chr)) %>%
+    arrange(trial) %>%
     pull(mean_S)
   names(mean_S_active) = paste("mean_S_active", trials_chr, sep = " - ")
   
   # Extract VE estimates.
   VE_est = naive_trt_effects_df %>%
     # Ensure the correct ordering of trials.
-    right_join(tibble(trial = trials_chr)) %>%
+    mutate(trial = factor(trial, levels = trials_chr)) %>%
+    arrange(trial) %>%
     pull(VE_est)
     
   names(VE_est) = paste("VE_est", trials_chr, sep = " - ")

@@ -454,7 +454,7 @@ theta_naive = extract_coefs_naive(df, estimate_weights, trials_chr)
 # Compute sandwich estimate
 m_est_naive = m_estimate(
   estFUN = estFUN_taudelta_naive,
-  data = df[sample(1:nrow(df), size = 4e4), ],
+  data = df,
   outer_args = list(weights_df = RESULT$weights_df, trials_chr = trials_chr),
   inner_args = list(estimate_weights = estimate_weights),
   roots = theta_naive,
