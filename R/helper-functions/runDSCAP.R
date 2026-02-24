@@ -53,6 +53,7 @@ RunDSCAP <- function(data,
     # Check for any estimated weights of Inf, which can occur if the fitted
     # model for the case-cohort sampling mechanism predicts a probability of
     # zero for some strata. 
+    problematic_subjects = NULL
     if (any(df$CC_weight == Inf)) {
       # Select subjects with Inf weight.
       problematic_subjects = df %>%
@@ -300,47 +301,48 @@ RunDSCAP <- function(data,
       mean_diff_S_CI_upper = mean_diff_S_est + qnorm(1 - alpha_level / 2) * mean_diff_S_se
     )
   
+  # Because the naive means in the target trial's treatment group is a valid
+  # estimator of that treatment group's mean standardized to the target trial,
+  # we replace the standardized means with the corresponding naive means. This
+  # is not necessary and this step could be omitted, however.
+  standardized_means_df <- standardized_means_df %>%
+    filter(treatment != target_trial) %>%
+    bind_rows(naive_means_df %>%
+                filter(trial == target_trial, vax == 1) %>%
+                select(mean_Y, mean_S) %>%
+                mutate(treatment = target_trial))
+  
+  ipw_means_df <- ipw_means_df %>%
+    filter(treatment != target_trial) %>%
+    bind_rows(naive_means_df %>%
+                filter(trial == target_trial, vax == 1) %>%
+                select(mean_Y, mean_S) %>%
+                mutate(treatment = target_trial))
+  
+  # For computing the standardized treatment effects
   standardized_trt_effects_df = standardized_means_df %>%
-    bind_rows(
-      naive_means_df %>%
-        filter(trial == target_trial, vax == 1) %>%
-        rename(trial_modified = trial) %>%
-        mutate(trial_modified = factor(trial_modified,
-                                       levels = c("Placebo", "1", "2", "3", "4", "5"))) |> 
-        dplyr::select(trial_modified, mean_Y, mean_S)
-    ) %>%
-    filter(trial_modified != "Placebo") %>%
+    filter(treatment != 0) %>%
     rename(mean_Y_1 = mean_Y, mean_S_1 = mean_S) %>%
     cross_join(
       standardized_means_df %>%
-        filter(trial_modified == "Placebo") %>%
+        filter(treatment == 0) %>%
         rename(mean_Y_0 = mean_Y, mean_S_0 = mean_S) %>%
-        dplyr::select(-trial_modified)
+        select(-treatment)
     ) %>%
     mutate(VE_est = 1 - mean_Y_1 / mean_Y_0,
-           mean_diff_S_est = mean_S_1 - mean_S_0,) %>%
-    rename(trial = "trial_modified")
+           mean_diff_S_est = mean_S_1 - mean_S_0)
   
   ipw_trt_effects_df = ipw_means_df %>%
-    bind_rows(
-      naive_means_df %>%
-        filter(trial == target_trial, vax == 1) %>%
-        rename(trial_modified = trial) %>%
-        mutate(trial_modified = factor(trial_modified,
-                                       levels = c("Placebo", "1", "2", "3", "4", "5"))) |> 
-        dplyr::select(trial_modified, mean_Y, mean_S)
-    ) %>%
-    filter(trial_modified != "Placebo") %>%
+    filter(treatment != 0) %>%
     rename(mean_Y_1 = mean_Y, mean_S_1 = mean_S) %>%
     cross_join(
-      ipw_means_df %>%
-        filter(trial_modified == "Placebo") %>%
+      standardized_means_df %>%
+        filter(treatment == 0) %>%
         rename(mean_Y_0 = mean_Y, mean_S_0 = mean_S) %>%
-        dplyr::select(-trial_modified)
+        select(-treatment)
     ) %>%
     mutate(VE_est = 1 - mean_Y_1 / mean_Y_0,
-           mean_diff_S_est = mean_S_1 - mean_S_0,) %>%
-    rename(trial = "trial_modified")
+           mean_diff_S_est = mean_S_1 - mean_S_0)
   
   # Compute the measures of surrogacy based on the naive trial-specific and
   # standardized treatment effect estimates.
@@ -377,13 +379,14 @@ RunDSCAP <- function(data,
           dplyr::select(-predicted_Y, -predicted_S),
         standardized_means_df = standardized_means_df,
         standardized_trt_effects_df = standardized_trt_effects_df,
+        ipw_means_df = ipw_means_df,
+        ipw_trt_effects_df = ipw_trt_effects_df,
         naive_means_df = naive_means_df,
         naive_trt_effects_df = naive_trt_effects_df,
         cor_standardized_df = cor_standardized_df,
         cor_naive_df = cor_naive_df,
-        weights_df = weights_df,
         target_trial = target_trial,
-        excluded_CC_strata = problematic_strata
+        problematic_subjects = problematic_subjects
       )
   } else{
     obj = 
@@ -399,9 +402,8 @@ RunDSCAP <- function(data,
         cor_standardized_df = cor_standardized_df,
         cor_naive_df = cor_naive_df,
         cor_ipw_df = cor_ipw_df,
-        #weights_df = weights_df,
         target_trial = target_trial
-        # excluded_CC_strata = problematic_strata
+        problematic_subjects = problematic_subjects
       )
   }
   
@@ -505,17 +507,6 @@ extract_coefs = function(obj, estimate_weights, target_trial) {
     estimates_vec = c(estimates_vec, 1 / estimated_weights)
   }
   return(estimates_vec)
-}
-
-strip_glm <- function(mod) {
-  mod$model <- NULL
-  mod$y <- NULL
-  mod$residuals <- NULL
-  mod$fitted.values <- NULL
-  mod$effects <- NULL
-  mod$qr <- NULL
-  mod$call <- NULL
-  mod
 }
 
 
