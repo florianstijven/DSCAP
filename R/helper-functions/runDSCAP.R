@@ -1,130 +1,149 @@
 RunDSCAP <- function(data,
                      formula_Y,
                      formula_S,
-                     formula_T, 
+                     formula_T,
+                     formula_CC,
+                     trial_var = "trial",
+                     treatment_var,
                      target_trial,
-                     #  sim = F,
                      estimate_weights = FALSE,
-                     CC_sampling = FALSE,
+                     CC_weight_var,
                      alpha_level = 0.05)
 {
+  # Use a new data frame to avoid modifying the input data frame.
   df = data
-  df$trial <- factor(df$trial, levels = 1:5)
+  # Add unique subject id
+  df = df %>%
+    ungroup() %>%
+    mutate(subject_id = row_number())
+  # Recode the trial variable as a factor and add a new variable indicating the 
+  # target trial
+  df = df %>%
+    ungroup() %>%
+    mutate(
+      trial = as.factor(.data[[trial_var]]),
+      target_population = ifelse(.data[[trial_var]] == target_trial, TRUE, FALSE),
+      treatment = .data[[treatment_var]]
+    )
   
-  # Determine which level of the trial factor corresponds to the target trial. 
-  target_trial_level_n = which(levels(df$trial) == target_trial)
+  # Does the analysis require case-cohort sampling?
+  CC_sampling = estimate_weights | !is.null(CC_weight_var)
   
-  n_trials <- length(levels(df$trial))
-  
-  # Re-estimate weights if required.
-  if (estimate_weights) {
-    df <- df %>% group_by(CC_stratum) %>% mutate(prop.delta = sum(Delta == 1) /
-                                                   n(),
-                                                 weight = 1 / prop.delta) %>%
-      dplyr::select(-prop.delta) %>%
-      # Placebo patients should get a weight of one.
-      mutate(weight = ifelse(A == 0, 1, weight))
-  }
-  
-  # Data frame that contains the estimated weight for each category in
-  # `CC_stratum`.
+  # If the analysis requires case-cohort sampling, we need to check whether the 
+  # weights need to be estimated are already given in the data.
   if(CC_sampling == TRUE){
-    weights_df = df %>%
-      group_by(CC_stratum) %>%
-      slice_head(n = 1) %>%
-      dplyr::select(CC_stratum, weight)
+    # Estimate weights if required.
+    if (estimate_weights) {
+      # From the formula_CC, extract the name of the case-cohort indicator
+      # variable and create a variable Delta that indicates whether the
+      # surrogate variable has been observed.
+      outcome_var_CC = all.vars(formula_CC)[1]
+      df <- df %>%
+        mutate(Delta = .data[[outcome_var_CC]])
+      # Fit logistic regression model for the case-cohort sampling mechanism and
+      # use the fitted model to estimate the weights.
+      CC_model_fit = glm(formula_CC, data = df, family = binomial)
+      df <- df %>%
+        mutate(CC_weight = 1 / predict(CC_model_fit, type = "response", newdata = pick(everything())))
+    } else {
+      df <- df %>%
+        mutate(CC_weight = .data[[CC_weight_var]])
+    }
     
-    problematic_strata = NA
-    if (any(weights_df$weight == Inf)) {
-      problematic_strata = weights_df %>%
-        filter(weight == Inf) %>%
-        pull(CC_stratum)
+    # Check for any estimated weights of Inf, which can occur if the fitted
+    # model for the case-cohort sampling mechanism predicts a probability of
+    # zero for some strata. 
+    if (any(df$CC_weight == Inf)) {
+      # Select subjects with Inf weight.
+      problematic_subjects = df %>%
+        filter(CC_weight == Inf)
+      n_problematic_subjects = nrow(problematic_subjects)
       warning(paste0(
         paste(
-          c("Estimated weight(s) of Inf for strata", problematic_strata),
+          c(
+            "Estimated weight(s) of Inf for",
+            n_problematic_subjects,
+            "subject(s)"
+          ),
           collapse = " "
         ),
         ". Corresponding observations are ignored for this analysis."
       ))
-      weights_df = weights_df %>%
-        filter(!(CC_stratum %in% problematic_strata))
       df = df  %>%
-        filter(!(CC_stratum %in% problematic_strata))
+        filter(CC_weight != Inf)
     }
+  } else {
+    # If case-cohort sampling is not used, we set the weights to 1 and Delta to
+    # 1 for all subjects.
+    df = df %>%
+      mutate(CC_weight = 1,
+             Delta = 1)
   }
+
   
   
   # standardization ---------------------------------------------------------
   
-  if(CC_sampling == TRUE){
-    outcome_model_fits_df = df %>%
-      mutate(trial_modified = ifelse(A == 0, "Placebo", as.character(trial)),
-             trial_modified = factor(trial_modified,
-                                     levels = c("Placebo", "1", "2", "3", "4", "5"))) %>%
-      filter(trial != target_trial) %>%
-      group_by(trial_modified) %>%
-      dplyr::summarize(
-        outcome_model_fit_Y = glm(formula_Y, data = pick(everything()), family = binomial, x = FALSE, y = FALSE) %>% list(),
-        outcome_model_fit_S = glm(
-          formula_S,
-          data = pick(everything()),
-          family = gaussian,
-          subset = (Delta == 1),
-          weights = weight, 
-          x = FALSE,
-          y = FALSE
-        ) %>% list()
-      ) %>%
-      # Extract coefficients vectors.
-      ungroup() %>%
-      mutate(
-        outcome_model_coef_Y = purrr::map(outcome_model_fit_Y, coef),
-        outcome_model_coef_S = purrr::map(outcome_model_fit_S, coef)
+  # Fit the outcome models for the clinical (Y) and surrogate (S) endpoints.
+  # Separate models are fit by `stratum_var` (e.g., trial) to allow for flexible
+  # differences in the relationships between covariates and outcomes across
+  # strata. The models for S are fit only among subjects with Delta == 1 and
+  # using the case-cohort weights if case-cohort sampling is used.
+  outcome_model_fits_df <- df %>%
+    group_by(treatment) %>%
+    group_split() %>%
+    purrr::map(.x = ., .f = function(df_stratum) {
+      # Fit the model for Y.
+      outcome_model_fit_Y = glm(
+        formula_Y,
+        data = df_stratum,
+        family = binomial,
+        x = FALSE,
+        y = FALSE
       )
-  } else{
-    outcome_model_fits_df = df %>%
-      mutate(trial_modified = ifelse(A == 0, "Placebo", as.character(trial)),
-             trial_modified = factor(trial_modified,
-                                     levels = c("Placebo", "1", "2", "3", "4", "5"))) %>%
-      filter(trial != target_trial) %>%
-      group_by(trial_modified) %>%
-      dplyr::summarize(
-        outcome_model_fit_Y = glm(formula_Y, data = pick(everything()), family = binomial, x = FALSE, y = FALSE) %>% list(),
-        outcome_model_fit_S = glm(
-          formula_S,
-          data = pick(everything()),
-          family = gaussian,
-          # subset = (Delta == 1),
-          # weights = weight, 
-          x = FALSE,
-          y = FALSE
-        ) %>% list()
-      ) %>%
-      # Extract coefficients vectors.
-      ungroup() %>%
-      mutate(
-        outcome_model_coef_Y = purrr::map(outcome_model_fit_Y, coef),
-        outcome_model_coef_S = purrr::map(outcome_model_fit_S, coef)
+      
+      # Fit the model for S.
+      outcome_model_fit_S = glm(
+        formula_S,
+        data = df_stratum,
+        family = gaussian,
+        subset = (Delta == 1),
+        weights = CC_weight,
+        x = FALSE,
+        y = FALSE
+      ) 
+      
+      # Return a data frame with the fitted models.
+      tibble(
+        treatment = unique(df_stratum$treatment),
+        fit_Y = list(outcome_model_fit_Y),
+        fit_S = list(outcome_model_fit_S),
+        coef_Y = list(coef(outcome_model_fit_Y)),
+        coef_S = list(coef(outcome_model_fit_S))
       )
-  }
+    }) %>%
+    bind_rows()
+
   
   # For each subject in the target trial, we predict the outcome using the model
-  # estimated in any of the other trials.
-  target_trial_df = df %>% 
-    filter(trial == target_trial) 
+  # estimated in any of the other trials/treatments. For each regression model
+  # in `outcome_model_fits_df`, we thus create a new variable with the predicted
+  # Y and S for all subjects from the target trial.
+  df_target_population = df %>%
+    filter(target_population)
   
-  outcome_model_fits_df = outcome_model_fits_df %>%
+  outcome_model_fits_df <- outcome_model_fits_df %>%
     mutate(
       predicted_Y = purrr::map(
-        .x = outcome_model_fit_Y,
+        .x = fit_Y,
         .f = function(outcome_model_fit) {
-          predict(outcome_model_fit, newdata = target_trial_df, type = "response")
+          predict(outcome_model_fit, newdata = df_target_population, type = "response")
         }
       ),
       predicted_S = purrr::map(
-        .x = outcome_model_fit_S,
+        .x = fit_S,
         .f = function(outcome_model_fit) {
-          predict(outcome_model_fit, newdata = target_trial_df, type = "response")
+          predict(outcome_model_fit, newdata = df_target_population, type = "response")
         }
       )
     )
@@ -142,77 +161,98 @@ RunDSCAP <- function(data,
         .f = mean
       )
     ) %>%
-    dplyr::select(trial_modified, mean_Y, mean_S)
+    dplyr::select(treatment, mean_Y, mean_S)
   
   
-  # weighted (IPW) estimator ----------------------------------------------------------------
+  # IPW estimator ----------------------------------------------------------------
   
+  # Estimate the treatment assignment probability, conditionally on X and trial.
+  # Because we have simple randomization in each trial, the treatment assignment
+  # probability is 0.5 for control in all trials, and 0.5 for the active
+  # treatment in the trial in which the active treatment is given and 0 for
+  # other treatments.
   
-  # conditional treatment assignment probability is treated 
-  # as a known function of T and X.
-  # note that this table does not include X2, just X1 
-  conditional_treatment_assignment_table <- expand.grid(
-    X1 = unique(df$X1), A = unique(df$A), trial = unique(df$trial)) |> 
-    mutate(treatment_assignment_prob = case_when(
-      A == 0 ~ 0.5,
-      A == 1 & trial == 1 ~ 0.5,
-      A == 2 & trial == 2 ~ 0.5,
-      A == 3 & trial == 3 ~ 0.5,
-      A == 4 & trial == 4 ~ 0.5,
-      A == 5 & trial == 5 ~ 0.5,
+  # Create tibble in long format that contains for every subject (i.e., for X_i)
+  # the treatment assignment probability P(A = a | X, T = t) for all a and t.
+  df_weight_helper <- df %>%
+    cross_join(expand_grid(treatment_pred = unique(df$treatment), trial_pred = unique(df$trial))) %>%
+    mutate(predicted_prob_treatment_XT = case_when(
+      treatment_pred == 0 ~ 0.5,
+      treatment_pred >= 1 & trial_pred == treatment_pred ~ 0.5,
       .default = 0
-    )) |> 
-    arrange(trial, A, X1)
+    )) %>%
+    # We only need to retain id, treatment_pred, and predicted_prob_treatment_XT
+    # for the IPW estimator. 
+    select(subject_id, treatment_pred, trial_pred, predicted_prob_treatment_XT) %>%
+    as_tibble()
+    
   
-  df_ipw <- df %>%
-    mutate(trial_modified = ifelse(A == 0, "Placebo", as.character(trial)),
-           trial_modified = factor(trial_modified,
-                                   levels = c("Placebo", "1", "2", "3", "4", "5")),
-           trial = relevel(trial, ref = "1")
+  # Estimate model for trial participation given X. The linear predictor of this
+  # model is given in `formula_T`.
+  trial_participation_model_fit <- nnet::multinom(formula_T, df)
+  # Compute the predicted probabilities of trial participation for each subject
+  # and add them to df_ipw.
+  df_weight_helper <- df_weight_helper %>%
+    left_join(
+      fitted(trial_participation_model_fit) %>%
+        as_tibble() %>%
+        mutate(subject_id = df$subject_id) %>%
+        pivot_longer(
+          cols = -subject_id,
+          names_to = "trial_pred",
+          values_to = "trial_participation_prob_X"
+        ),
+      by = c("subject_id", "trial_pred"),
+      relationship = "many-to-many"
     )
   
-  # model for T | X 
-  prob_t_equals_1 <- nrow(df_ipw[df_ipw$trial==1,]) / nrow(df_ipw)
-  trial_participation_model_fit <- nnet::multinom(formula_T, df_ipw)
+  # Compute the IPW weights for each subject in the target trial. These weights
+  # are defined for treatment A = a and target trial T = t as P(T = t | X) /
+  # (P(A = a | X) * P(T = t)) where P(A = a | X) := Sum_{t} P(A = a | T = t, X)
+  # * P(T = t | X) and the probabilities in the denominator are estimated using
+  # the models fitted above. The probabilities P(A = a | T = t, X) are given in
+  # `df_ipw$predicted_prob_treatment` and the probabilities P(T = t | X) are
+  # given in `df_ipw$trial_participation_prob_X`. The probability P(T = t) is
+  # estimated as the proportion of subjects in the target trial.
+  prob_target_trial = mean(df$target_population)
   
-  df_ipw$trial_participation_model_preds <- asplit(fitted(trial_participation_model_fit), 1)
+  # Compute P(A = a | X) for each subject in the target trial for all a. 
+  df_weights <- df_weight_helper %>%
+    group_by(subject_id, treatment_pred) %>%
+    dplyr::summarize(predicted_prob_treatment_X = sum(predicted_prob_treatment_XT * trial_participation_prob_X))
   
-  calculate_W_hat_a <- function(conditional_treatment_assignment_table,
-                                trial_participation_model_fit, 
-                                trial_participation_model_preds,
-                                prob_t_equals_1,
-                                A, 
-                                X1, 
-                                X2) {
-    
-    conditional_treatment_assignment_probs_by_trial <-  
-      conditional_treatment_assignment_table[(conditional_treatment_assignment_table$A == A) & 
-                                               (conditional_treatment_assignment_table$X1 == X1),]$treatment_assignment_prob
-    
-    W_hat_a <- trial_participation_model_preds[1] /
-      (prob_t_equals_1 * sum(
-        conditional_treatment_assignment_probs_by_trial * 
-          trial_participation_model_preds
-      ))
-    
-    return(W_hat_a)
-  }
+  # Compute P(T = t | X) for t equal to the target trial.
+  df_weights <- df_weights %>%
+    left_join(
+      df_weight_helper %>%
+        filter(trial_pred == target_trial) %>%
+        # There are multiple rows per subject, but the `trial_participation_prob_X`
+        # values are identical. We thus take the first value for each subject.
+        group_by(subject_id) %>%
+        slice_max(n = 1, order_by = treatment_pred) %>%
+        select(subject_id, trial_participation_prob_X),
+      by = "subject_id",
+      relationship = "many-to-one"
+    )
   
-  df_ipw <- df_ipw %>%
-    mutate(W_hat_a = calculate_W_hat_a(conditional_treatment_assignment_table,
-                                       trial_participation_model_fit, 
-                                       trial_participation_model_preds,
-                                       prob_t_equals_1,
-                                       A, 
-                                       X1, 
-                                       X2)) 
+  # Compute the overall weight.
+  df_weights <- df_weights %>%
+    mutate(weight = trial_participation_prob_X / (predicted_prob_treatment_X * prob_target_trial))
   
-  ipw_means_df <- df_ipw |> 
-    #filter(trial != target_trial) |> 
-    group_by(trial_modified) |> 
-    dplyr::summarize(mean_Y = sum(Y * W_hat_a) / nrow(df_ipw),
-                     mean_S = sum(S * W_hat_a) / nrow(df_ipw)) |> 
-    filter(trial_modified != 1) 
+  # Compute the weighted means for Y and S for each treatment. .
+  ipw_means_df <- df_weights %>%
+    left_join(
+      df %>%
+        select(subject_id, treatment, Y, S),
+      by = "subject_id",
+      relationship = "many-to-one"
+    ) %>%
+    # Multiply missingness indicator for whether desired treatment does not match observed
+    # treatment with the weight.
+    mutate(W_hat_a = ifelse(treatment == treatment_pred, weight, 0)) %>%
+    group_by(treatment) %>%
+    dplyr::summarize(mean_Y = sum(Y * W_hat_a) / sum(W_hat_a),
+                     mean_S = sum(S * W_hat_a) / sum(W_hat_a))
   
   # naive estimates and output all estimates --------------------------------
   
@@ -465,6 +505,17 @@ extract_coefs = function(obj, estimate_weights, target_trial) {
     estimates_vec = c(estimates_vec, 1 / estimated_weights)
   }
   return(estimates_vec)
+}
+
+strip_glm <- function(mod) {
+  mod$model <- NULL
+  mod$y <- NULL
+  mod$residuals <- NULL
+  mod$fitted.values <- NULL
+  mod$effects <- NULL
+  mod$qr <- NULL
+  mod$call <- NULL
+  mod
 }
 
 

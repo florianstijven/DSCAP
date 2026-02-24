@@ -12,6 +12,7 @@ library(tidyverse)
 library(geex)
 library(nnet) # multinom() function for multinomial logistic regression
 library(Hmisc)
+library(caret)
 
 # Extract arguments for analysis. 
 # args = commandArgs(trailingOnly=TRUE)
@@ -33,7 +34,7 @@ n_perm <- 10
 iteration <- 100
 CC_sampling <- FALSE
 estimate_weights <- FALSE
-setting <- 1
+setting <- 2
 n_t <- 1500
 
 set.seed(iteration)
@@ -47,11 +48,21 @@ source("helper_functions/estFUN.R")
 
 # Define formulas for the outcome models for (i) clinical outcome Y and (ii)
 # surrogate outcome S. The same linear predictors are used for both models. 
-Ymod = as.formula(paste0("Y ~ ",vars))
-Smod = as.formula(paste0("S ~ ",vars))
+Ymod = formula(Y ~ X1 + X2)
+formula_Y = formula(Y ~ X1 + X2)
+Smod = formula(S ~ X1 + X2)
+formula_S = formula(S ~ X1 + X2)
+formula_T = formula(trial ~ X1 + X2)
 
 # Define formula for trial participation model
 Tmod = as.formula(paste0("trial ~ ",vars))
+
+n_trials = 5
+n_t = 5e3
+trial_var = "trial"
+treatment_var = "A"
+CC_weight_var = NULL
+target_trial = 1
 
 df <- generate_simulated_data(n_trials = n_trials, 
                               n_t = n_t,
@@ -60,7 +71,7 @@ df <- generate_simulated_data(n_trials = n_trials,
                               gamma.set = gamma.set, 
                               theta.set = theta.set,
                               CC = FALSE, 
-                              ZOPT = NA)
+                              ZOPT = 1)
 
 # Add variable that defines the target population. 0: for target populations; 1
 # otherwise. trial #1 is defined to be the target trial
