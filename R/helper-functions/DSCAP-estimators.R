@@ -7,7 +7,7 @@ estimate_DSCAP <- function(data,
                            formula_Y,
                            formula_S,
                            formula_T,
-                           formula_CC,
+                           formula_CC = NULL,
                            trial_var = "trial",
                            treatment_var,
                            target_trial,
@@ -19,7 +19,6 @@ estimate_DSCAP <- function(data,
       standardization_estimator(
         formula_Y = formula_Y,
         formula_S = formula_S,
-        formula_T = formula_T,
         formula_CC = formula_CC,
         trial_var = trial_var,
         treatment_var = treatment_var,
@@ -31,8 +30,6 @@ estimate_DSCAP <- function(data,
   } else if (type == "ipw") {
     trt_effects_df = data %>%
       ipw_estimator(
-        formula_Y = formula_Y,
-        formula_S = formula_S,
         formula_T = formula_T,
         formula_CC = formula_CC,
         trial_var = trial_var,
@@ -59,12 +56,11 @@ estimate_DSCAP <- function(data,
   } else if (type == "naive") {
     trt_effects_df = data %>%
       naive_estimator(
-        formula_Y = formula_Y,
-        formula_S = formula_S,
-        formula_T = formula_T,
+        formula_CC = formula_CC,
         trial_var = trial_var,
         treatment_var = treatment_var,
-        target_trial = target_trial
+        estimate_weights = estimate_weights,
+        CC_weight_var = CC_weight_var
       ) %>%
       trt_effects(by_trial = TRUE)
   }
