@@ -101,6 +101,9 @@ standardization_estimator <- function(data,
                    CC_weight_var,
                    alpha_level)
   
+  # Does the analysis require case-cohort sampling?
+  CC_sampling = estimate_weights | !is.null(CC_weight_var)
+  
   # Fit the outcome models for the clinical (Y) and surrogate (S) endpoints.
   # Separate models are fit by `stratum_var` (e.g., trial) to allow for flexible
   # differences in the relationships between covariates and outcomes across
@@ -204,6 +207,9 @@ ipw_estimator <- function(data,
                         CC_weight_var,
                         alpha_level)
   
+  # Does the analysis require case-cohort sampling?
+  CC_sampling = estimate_weights | !is.null(CC_weight_var)
+  
   # Estimate the treatment assignment probability, conditionally on X and trial.
   # Because we have simple randomization in each trial, the treatment assignment
   # probability is 0.5 for control in all trials, and 0.5 for the active
@@ -292,6 +298,7 @@ ipw_estimator <- function(data,
     dplyr::summarize(mean_Y = sum(Y * W_hat_a) / sum(W_hat_a),
                      mean_S = sum(S * W_hat_a) / sum(W_hat_a))
   
+  return(ipw_means_df)
 }
 
 # Doubly robust estimator
@@ -307,6 +314,18 @@ DR_estimator <- function(data,
                          CC_weight_var,
                          alpha_level = 0.05) {
   
+  df = data_preparation(data,
+                        formula_CC,
+                        trial_var = "trial",
+                        treatment_var,
+                        target_trial,
+                        estimate_weights,
+                        CC_weight_var,
+                        alpha_level)
+  
+  # Does the analysis require case-cohort sampling?
+  CC_sampling = estimate_weights | !is.null(CC_weight_var)
+  
 }
 
 naive_estimator <- function(data,
@@ -317,6 +336,95 @@ naive_estimator <- function(data,
                             CC_weight_var,
                             alpha_level = 0.05) {
   
+  df = data_preparation(data,
+                        formula_CC,
+                        trial_var = "trial",
+                        treatment_var,
+                        target_trial,
+                        estimate_weights,
+                        CC_weight_var,
+                        alpha_level)
+  
+  # Does the analysis require case-cohort sampling?
+  CC_sampling = estimate_weights | !is.null(CC_weight_var)
+  
+  # Compute the naive trial-specific means. 
+  if(CC_sampling == TRUE){
+    naive_means_df = df %>%
+      group_by(trial, treatment) %>%
+      dplyr::summarize(
+        mean_Y = mean(Y),
+        n = n(),
+        mean_S = mean(weight * S),
+        var_S = var(weight * S),
+        .groups = "drop"
+      )
+  } else{
+    naive_means_df = df %>%
+      group_by(trial, treatment) %>%
+      dplyr::summarize(
+        mean_Y = mean(Y),
+        n = n(),
+        mean_S = mean(S),
+        var_S = var(S),
+        .groups = "drop"
+      )
+  }
+  
+  return(naive_means_df)
+}
+
+# Compute treatment effects from the estimated means in each trial.
+trt_effects <- function(means_df, by_trial) {
+  # Compute the treatment effects for each trial. The `by_trial` argument
+  # indicates whether one control group mean should be used for all trials
+  # (i.e., for the standardized means estimator) or whether trial-specific
+  # control group means should be used (i.e., for the naive estimator).
+  if (by_trial) {
+    # We assume here that the control group (indicated by treatment = 0) is
+    # present in all trials and that the trials have one unique active treatment
+    # group.
+    means_df = means_df %>%
+      select(trial, treatment, mean_Y, mean_S) %>%
+      filter(treatment == 0) %>%
+      rename(mean_Y_0 = mean_Y, mean_S_0 = mean_S) %>%
+      select(-treatment) %>%
+      left_join(
+        means_df %>%
+          select(trial, treatment, mean_Y, mean_S) %>%
+          filter(treatment != 0) %>%
+          rename(mean_Y_1 = mean_Y, mean_S_1 = mean_S),
+        by = "trial",
+        relationship = "one-to-many"
+      ) %>%
+      select(-trial)
+  } else {
+    # We assume here that the control group (indicated by treatment = 0) is
+    # present in all trials and that the trials have one unique active treatment
+    # group. We also assume that the control group means are identical across
+    # trials.
+    means_df = means_df %>%
+      select(treatment, mean_Y, mean_S) %>%
+      filter(treatment == 0) %>%
+      rename(mean_Y_0 = mean_Y, mean_S_0 = mean_S) %>%
+      select(-treatment) %>%
+      left_join(
+        means_df %>%
+          select(treatment, mean_Y, mean_S) %>%
+          filter(treatment != 0) %>%
+          rename(mean_Y_1 = mean_Y, mean_S_1 = mean_S),
+        by = character(),
+        relationship = "one-to-many"
+      )
+  }
+  trt_effects_df = means_df %>%
+    mutate(
+      VE_est = 1 - (mean_Y_1 / mean_Y_0),
+      mean_diff_S_est = mean_S_1 - mean_S_0
+    ) %>%
+    select(treatment, VE_est, mean_diff_S_est)
+  
+  return(trt_effects_df)
 }
 
 RunDSCAP <- function(data,
@@ -723,7 +831,7 @@ RunDSCAP <- function(data,
         cor_standardized_df = cor_standardized_df,
         cor_naive_df = cor_naive_df,
         cor_ipw_df = cor_ipw_df,
-        target_trial = target_trial
+        target_trial = target_trial,
         problematic_subjects = problematic_subjects
       )
   }
