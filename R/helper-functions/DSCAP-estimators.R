@@ -1,7 +1,7 @@
-# Function that computes the DSCAPs (i.e., the association measures) for a given
-# data set from multiple trials. The `type` argument specifies the type of
-# trial-level treatment effect estimators (standardized, ipw, doubly-robust,
-# naive).
+# Function that computes the trial-level treatment effects and DSCAPs (i.e., the
+# association measures) for a given data set from multiple trials. The `type`
+# argument specifies the type of trial-level treatment effect estimators
+# (standardized, ipw, doubly-robust, naive).
 estimate_DSCAP <- function(data,
                            type,
                            formula_Y,
@@ -69,7 +69,65 @@ estimate_DSCAP <- function(data,
   # estimates.
   association_measures_df = association_measures(trt_effects_df)
   
-  return(association_measures_df)
+  return(
+    list(
+      association_measures_df = association_measures_df,
+      trt_effects_df = trt_effects_df
+    )
+  )
+}
+
+# Function that computes the trial-level treatment effect estimates and
+# association measures, and performs the bootstrap for inferences.
+inference_DSCAP <- function(data,
+                        type,
+                        formula_Y,
+                        formula_S,
+                        formula_T,
+                        formula_CC = NULL,
+                        trial_var = "trial",
+                        treatment_var,
+                        target_trial,
+                        estimate_weights = FALSE,
+                        CC_weight_var,
+                        n_bootstrap) {
+  # Estimate the trial-level treatment effects and association measures in the
+  # original data.
+  association_measures_df = estimate_DSCAP(
+    data = data,
+    type = type,
+    formula_Y = formula_Y,
+    formula_S = formula_S,
+    formula_T = formula_T,
+    formula_CC = formula_CC,
+    trial_var = trial_var,
+    treatment_var = treatment_var,
+    target_trial = target_trial,
+    estimate_weights = estimate_weights,
+    CC_weight_var = CC_weight_var
+  )
+  
+  # Perform the bootstrap to obtain standard errors and confidence intervals for
+  # the association measures.
+  bootstrap_replicates_df = bootstrap_DSCAP(
+    data = data,
+    type = type,
+    formula_Y = formula_Y,
+    formula_S = formula_S,
+    formula_T = formula_T,
+    formula_CC = formula_CC,
+    trial_var = trial_var,
+    treatment_var = treatment_var,
+    target_trial = target_trial,
+    estimate_weights = estimate_weights,
+    CC_weight_var = CC_weight_var,
+    n_bootstrap = n_bootstrap
+  )
+  
+  return(list(
+    association_measures_df = association_measures_df, 
+    bootstrap_replicates_df = bootstrap_replicates_df
+  ))
 }
 
 # Function to compute association measures (i.e., the DSCAPs) given the table of
@@ -93,4 +151,27 @@ association_measures <- function(trt_effects_df) {
   )
   
   return(association_measures_df)
+}
+
+# Function that maps the association measures and treatment effect measures
+# tables into a single table with one estimate per row.
+estimates_table_join <- function(association_measures_df, trt_effects_df) {
+  # Reshape the association measures table to have one row per measure.
+  association_measures_long_df = association_measures_df %>%
+    pivot_longer(cols = everything(),
+                 names_to = "measure",
+                 values_to = "estimate") %>%
+    mutate(type = "association_measure")
+  
+  # Reshape the treatment effects table to have one row per trial and measure.
+  trt_effects_long_df = trt_effects_df %>%
+    pivot_longer(cols = c(VE_est, mean_diff_S_est),
+                 names_to = "measure",
+                 values_to = "estimate") %>%
+    mutate(type = "treatment_effect")
+  
+  # Join the two tables together.
+  estimates_df = bind_rows(association_measures_long_df, trt_effects_long_df)
+  
+  return(estimates_df)
 }
