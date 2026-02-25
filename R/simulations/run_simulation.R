@@ -1,51 +1,51 @@
-
-# setup and data generation -----------------------------------------------
-## setup -------------------------------------------------------------------
+# Preliminaries -----------------------------------------------------------
 t1 <- Sys.time()
 
+# Load all R packages
 library(tidyverse)
 # A custom version of the geex package is used to avoid issues with large
 # objects.
 # install.packages("geex_1.1.1.tar.gz", repos = NULL)
-library(geex, lib.loc = "/home/srosin/sim_code/pkgs/")
+# library(geex, lib.loc = "/home/srosin/sim_code/pkgs/")
 library(nnet) # multinom() function for multinomial logistic regression
 library(Hmisc)
 
-wd <- "/home/srosin/sim_code/" #wd <- "H:/sim_code/"
-setwd(wd) 
+# Set up parallel computing
+if (parallelly::supportsMulticore()) {
+  plan("multicore", workers = parallel::detectCores() - 1)
+} else {
+  plan(multisession, workers = parallel::detectCores() - 1)
+}
+# Extract arguments for analysis.
+args = commandArgs(trailingOnly = TRUE)
 
-# Extract arguments for analysis. 
-iteration <- Sys.getenv("SLURM_ARRAY_TASK_ID") # get the array ID to use as the random seed
-set.seed(iteration)
-
-args = commandArgs(trailingOnly=TRUE)
 setting <- as.numeric(args[1])
+# Number of trials in each simulation.
 n_trials <- as.numeric(args[2])
+# Number of subjects in each trial.
 n_t <- as.numeric(args[3])
+# Number of bootstrap replications for inference.
 n_boot <- as.numeric(args[4])
+# Number of replications for permutation test for conditional independence.r
 n_perm <- as.numeric(args[5])
 vars <- as.character(args[6])
+# Case-cohort sampling indicator. If TRUE, the data are generated according to a
+# case-cohort sampling design. If FALSE, the data are generated according to a
+# full-cohort design.
 CC_sampling <- as.logical(args[7])
+# Indicator for whether the weights are (re-)estimated for the bootstrap.
 estimate_weights <- as.logical(args[8])
 
-# load helper functions
-source(paste(wd, "helper_functions/parameter_values.R",sep=""))
-source(paste(wd, "helper_functions/generate_simulated_data.R",sep=""))
-source(paste(wd, "helper_functions/runDSCAP.R",sep=""))
-source(paste(wd, "helper_functions/estFUN.R",sep=""))
-
-# print(args)
-# print(vars)
-# print(CC_sampling)
-# print(estimate_weights)
-
 # Define formulas for the outcome models for (i) clinical outcome Y and (ii)
-# surrogate outcome S. The same linear predictors are used for both models. 
-Ymod = as.formula(paste0("Y ~ ",vars))
-Smod = as.formula(paste0("S ~ ",vars))
+# surrogate outcome S. The same linear predictors are used for both models. In
+# the simulations, the corresponding models are automatically stratified by
+# treatment.
+formula_Y = as.formula(paste0("Y ~ ",vars))
+formula_S = as.formula(paste0("S ~ ",vars))
 
-# Define formula for trial participation model
-Tmod = as.formula(paste0("trial ~ ",vars))
+# Define formula for trial participation model given covariates X (but not
+# treatment).
+formula_T = as.formula(paste0("trial ~ ",vars))
 
 
 df <- generate_simulated_data(n_trials = n_trials, 
@@ -57,17 +57,19 @@ df <- generate_simulated_data(n_trials = n_trials,
                               CC = CC_sampling, 
                               ZOPT = NA)
 
-# output directory to store results. note that "results" subdir must exist
-wd <- getwd()
-outdir = paste0(
-  wd,
-  "/results/setting",
-  setting,
-  "_ntrials",
-  n_trials,
-  "/raw_results/"
-)
-if (!dir.exists(outdir)) { dir.create(outdir, recursive=T) }
+
+# Helper Functions --------------------------------------------------------
+
+# Source helper functions.
+source("R/helper-functions/DSCAP-estimators.R")
+source("R/helper-functions/treatment-effect-estimators.R")
+
+## Simulation Function --------------------------------------------------
+
+# Function to analyze one data set.
+analyze <- function() {
+  
+}
 
 # data analysis -----------------------------------------------------------
 
@@ -288,110 +290,6 @@ outfile_bootstrap = paste0(
 )
 
 write.csv(bootstrap_inferences_df, outfile_bootstrap, row.names=FALSE)
-
-## sandwich variance estimation -----------------------------------------------------
-# 
-# if(CC_sampling){
-# 
-#   # If some of the estimated weights are equal to 1, this will break the sandwich
-#   # estimator because the corresponding bread matrix will not be invertible.
-#   problem_weights = RESULT$weights_df %>%
-#     filter(CC_stratum != "Placebo", weight == 1) %>%
-#     summarize(n() >= 1) %>%
-#     pull() %>% # Returns TRUE if there is an estimated weight of exactly 1.
-#     any()
-# 
-#   if (estimate_weights & problem_weights) {
-#     warning(
-#       "At least one weight stratum has an estimated weight equal to one. The original sandwich estimator fails because the bread matrix is not invertible. A modified sandwich estimator is obtained by treating the problematic weight stratum's weight as fixed."
-#     )
-#     # The problematic stratum is joined with the placebo stratum. This forces the
-#     # code to treat the corresponding (estimated) weight as fixed.
-#     problematic_strata = RESULT$weights_df %>%
-#       filter(CC_stratum != "Placebo", weight == 1) %>%
-#       pull(CC_stratum) %>%
-#       unique()
-#     df = df %>%
-#       mutate(CC_stratum = ifelse(CC_stratum %in% problematic_strata, "Placebo", CC_stratum))
-# 
-#     # The models and weights are re-estimated, now with the modified weight
-#     # strata. Note that all results remain unchanged, except that there is now
-#     # one weight stratum fewer.
-#     RESULT <- RunDSCAP(
-#       data = df,
-#       formula_S = Smod,
-#       formula_Y = Ymod,
-#       target_trial = 1,
-#       sim = F,
-#       estimate_weights = TRUE
-#     )
-#   }
-# }
-# 
-# # Extract estimated parameter vector that corresponds to the set of stacked
-# # estimating equations.
-# theta = extract_coefs(RESULT, estimate_weights, target_trial = 1)
-# 
-# if(CC_sampling){
-#   # Attach estimated weights to original data frame. These weights will be used if
-#   # the weights are treated as known for the sandwich variance estimator.
-#   df = df %>%
-#     select(-weight) %>% left_join(RESULT$weights_df, by = "CC_stratum")
-# }
-# 
-# # Compute sandwich estimate
-# if(CC_sampling){
-#   m_est = m_estimate(
-#     estFUN = estFUN_taudelta_CC,
-#     data = df,
-#     outer_args = list(
-#       models_tbl = RESULT$outcome_model_fits_df %>%
-#         dplyr::select(A_modified, outcome_model_fit_Y, outcome_model_fit_S),
-#       weights_df = RESULT$weights_df,
-#       target_trial = 1
-#     ),
-#     inner_args = list(
-#       estimate_weights = estimate_weights
-#     ),
-#     roots = theta,
-#     compute_roots = FALSE,
-#     deriv_control = setup_deriv_control(method = "simple"),
-#     compute_vcov = TRUE
-#   )
-# } else {
-#   m_est = m_estimate(
-#     estFUN = estFUN_taudelta,
-#     data = df,
-#     outer_args = list(
-#       models_tbl = RESULT$outcome_model_fits_df %>%
-#         dplyr::select(A_modified, outcome_model_fit_Y, outcome_model_fit_S),
-#       target_trial = 1
-#     ),
-#     roots = theta,
-#     compute_roots = FALSE,
-#     deriv_control = setup_deriv_control(method = "simple"),
-#     compute_vcov = TRUE
-#   )
-# }
-# 
-# 
-# vcov_m_est <- data.frame(vcov(m_est))
-# colnames(vcov_m_est) = names(theta)
-# 
-# 
-# # outdir2 = paste0(
-# #   outdir,
-# #   "/vcovs"
-# # )
-# # if (!dir.exists(outdir2)) { dir.create(outdir2) }
-# 
-# outfile_vcov = paste0(
-#   outdir,
-#   "/vcov_",
-#   iteration,
-#   ".csv"
-# )
-# write.csv(vcov_m_est, outfile_vcov, row.names = FALSE)
 
 t2 <- Sys.time()
 print(t2 - t1)
