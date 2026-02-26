@@ -1,3 +1,6 @@
+analysishelpers = R/helper-functions/DSCAP-estimators.R R/helper-functions/permutation-LRT.R R/helper-functions/treatment-effect-estimators.R
+simulationhelpers = R/simulations/generate-simulated-data.R R/simulations/parameter-values.R 
+
 # Number of bootstrap replications and replications for the permutation test.
 B = 2000
 # Rscripts that contain helper functions.
@@ -9,12 +12,16 @@ data = data/processed_data.csv
 #treatment effects to the target trial.
 formula = risk_score+age.geq.65+riskxage+BMI_underweight_normal
 
-.PHONY: all
-all: R/neut_AZ_full_M1_estwts.Rout R/spike_AZ_full_M1_estwts.Rout \
+.PHONY: all application simulation
+
+all: application simulation
+
+simulation: results/simulations/raw-results/simulation_results_tbl.rds
+
+application: R/neut_AZ_full_M1_estwts.Rout R/spike_AZ_full_M1_estwts.Rout \
 	R/neut_AZ_truncated_M2_estwts.Rout R/spike_AZ_truncated_M2_estwts.Rout \
 	R/plots_tables.Rout
 # R/data-exploration.Rout
-	
 # R/data-exploration.R can only be run when the original data are available. We 
 # therefore commented out this target. If the original data are available, then 
 # one can uncomment this target and run make. 
@@ -44,3 +51,7 @@ R/spike_AZ_truncated_M2_estwts.Rout: R/estimate_dscap.R $(helpers) $(data)
 R/plots_tables.Rout: R/neut_AZ_full_M1_estwts.Rout R/spike_AZ_full_M1_estwts.Rout \
 	R/neut_AZ_truncated_M2_estwts.Rout R/spike_AZ_truncated_M2_estwts.Rout
 	Rscript --verbose R/plots_tables.R AZ > $@ 2> $@
+	
+	
+results/simulations/raw-results/simulation_results_tbl.rds: R/simulations/run_simulation.R $(analysishelpers) $(simulationhelpers)
+	Rscript R/simulations/simulations.R proof-of-concept small 500
