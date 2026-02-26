@@ -5,8 +5,7 @@ data_preparation <- function(data,
                              treatment_var,
                              target_trial,
                              estimate_weights = FALSE,
-                             CC_weight_var,
-                             alpha_level = 0.05) {
+                             CC_weight_var) {
   # Use a new data frame to avoid modifying the input data frame.
   df = data
   # Add unique subject ids to the data frame. These ids are needed further on to
@@ -98,7 +97,7 @@ standardization_estimator <- function(data,
                                       target_trial,
                                       estimate_weights = FALSE,
                                       CC_weight_var,
-                                      alpha_level = 0.05) {
+                                      alpha = 0.05) {
   df = data_preparation(
     data,
     formula_CC,
@@ -106,8 +105,7 @@ standardization_estimator <- function(data,
     treatment_var,
     target_trial,
     estimate_weights,
-    CC_weight_var,
-    alpha_level
+    CC_weight_var
   )
   
   # Does the analysis require case-cohort sampling?
@@ -166,7 +164,7 @@ ipw_estimator <- function(data,
                           target_trial,
                           estimate_weights = FALSE,
                           CC_weight_var,
-                          alpha_level = 0.05) {
+                          alpha = 0.05) {
   df = data_preparation(
     data,
     formula_CC,
@@ -174,8 +172,7 @@ ipw_estimator <- function(data,
     treatment_var,
     target_trial,
     estimate_weights,
-    CC_weight_var,
-    alpha_level
+    CC_weight_var
   )
   
   # Does the analysis require case-cohort sampling?
@@ -216,7 +213,7 @@ DR_estimator <- function(data,
                          target_trial,
                          estimate_weights = FALSE,
                          CC_weight_var,
-                         alpha_level = 0.05) {
+                         alpha = 0.05) {
   df = data_preparation(
     data,
     formula_CC,
@@ -224,8 +221,7 @@ DR_estimator <- function(data,
     treatment_var,
     target_trial,
     estimate_weights,
-    CC_weight_var,
-    alpha_level
+    CC_weight_var
   )
   
   # Does the analysis require case-cohort sampling?
@@ -343,7 +339,7 @@ naive_estimator <- function(data,
                             treatment_var,
                             estimate_weights = FALSE,
                             CC_weight_var,
-                            alpha_level = 0.05) {
+                            alpha = 0.05) {
   df = data_preparation(
     data,
     formula_CC,
@@ -351,8 +347,7 @@ naive_estimator <- function(data,
     treatment_var,
     target_trial,
     estimate_weights,
-    CC_weight_var,
-    alpha_level
+    CC_weight_var
   )
   
   # Does the analysis require case-cohort sampling?
