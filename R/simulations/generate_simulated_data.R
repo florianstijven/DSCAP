@@ -12,11 +12,11 @@
 generate_simulated_data <- function(
     n_trials,
     n_t,
-    Ymod,
-    Smod,
-    gamma.set,
-    theta.set,
-    CC = FALSE,
+    formula_Y,
+    formula_S,
+    gamma,
+    theta,
+    CC_sampling = FALSE,
     ZOPT = NULL
 ) {
   
@@ -36,17 +36,17 @@ generate_simulated_data <- function(
   # Multinomial trial assignment
   # ----------------------------
   denom <- 1 +
-    exp(X %*% zeta) +
-    exp(X %*% eta) +
-    exp(X %*% lambda) +
-    exp(X %*% xi)
+    exp(X %*% zeta1) +
+    exp(X %*% zeta2) +
+    exp(X %*% zeta3) +
+    exp(X %*% zeta4)
   
   probs <- cbind(
     1 / denom,
-    exp(X %*% xi)     / denom,
-    exp(X %*% lambda) / denom,
-    exp(X %*% eta)    / denom,
-    exp(X %*% zeta)   / denom
+    exp(X %*% zeta4)     / denom,
+    exp(X %*% zeta3) / denom,
+    exp(X %*% zeta2)    / denom,
+    exp(X %*% zeta1)   / denom
   )
   
   trial <- max.col(
@@ -82,8 +82,8 @@ generate_simulated_data <- function(
     idx <- which(A == a)
     if (length(idx) == 0) next
     
-    theta_a <- matrix(theta.set[[a + 1]], ncol = 1)
-    gamma_a <- matrix(gamma.set[[a + 1]], ncol = 1)
+    theta_a <- theta[a + 1, ]
+    gamma_a <- gamma[a + 1, ]
     
     mu_Y <- inv_logit(X[idx, ] %*% theta_a)
     mu_S <- X[idx, ] %*% gamma_a
@@ -95,14 +95,14 @@ generate_simulated_data <- function(
   # ==================================================
   # CASE–COHORT DESIGN
   # ==================================================
-  if (isTRUE(CC)) {
+  if (isTRUE(CC_sampling)) {
     
     if (ZOPT == 1) {
       Z <- interaction(X1, X2 >= 65, drop = TRUE)
     } else if (ZOPT == 2) {
       Z <- factor(X1)
     } else {
-      stop("ZOPT must be 1 or 2 when CC=TRUE")
+      stop("ZOPT must be 1 or 2 when CC_sampling=TRUE")
     }
     
     df$Z <- Z
