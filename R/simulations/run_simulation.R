@@ -51,7 +51,7 @@ formula_T = as.formula(trial ~ X1 + X2)
 # Formula for case-cohort sampling model (i.e., model for probability of being
 # sampled in the case-cohort sampling design given covariates X, treatment A,
 # outcome Y, and trial).
-formula_CC = as.formula(Delta ~ CC_stratum*trial*as.factor(A))
+formula_CC = as.formula(Delta ~ CC_stratum * trial * as.factor(A))
 
 # Helper Functions --------------------------------------------------------
 
@@ -160,7 +160,7 @@ analyze <- function(data,
         SE = NA
       )
     )
-
+  
   return(inferences_tbl)
 }
 
@@ -238,13 +238,21 @@ simulations_results_tbl$inferences_tbl = future_pmap(
   )
 )
 
+# Remove redundant information and convert to a long format where each row
+# contains one estimate for a given parameter. Hence, the estimates and
+# inferences for a single simulated data set span many rows.
+simulations_results_tbl = simulations_results_tbl %>%
+  select(-theta, -gamma) %>%
+  unnest(inferences_tbl)
+
+
 
 # Save Results -------------------------------------------------------------
 
 # Save the results in an RDS file.
 saveRDS(
   simulations_results_tbl,
-  "results/raw-results/simulations/simulations_results_tbl.rds"
+  "results/simulations/raw-results/simulations_results_tbl.rds"
 )
 
 print(Sys.time() - t1)
