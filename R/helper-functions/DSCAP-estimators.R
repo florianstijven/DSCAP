@@ -12,10 +12,11 @@ estimate_DSCAP <- function(data,
                            treatment_var,
                            target_trial,
                            estimate_weights = FALSE,
-                           CC_weight_var) {
+                           CC_weight_var,
+                           corrected_target_trial = TRUE) {
   # Estimate the trial-level treatment effects with the requested estimator.
   if (type == "standardized") {
-    trt_effects_df = data %>%
+    means_df = data %>%
       standardization_estimator(
         formula_Y = formula_Y,
         formula_S = formula_S,
@@ -25,10 +26,12 @@ estimate_DSCAP <- function(data,
         target_trial = target_trial,
         estimate_weights = estimate_weights,
         CC_weight_var = CC_weight_var
-      ) %>%
+      ) 
+    
+    trt_effects_df = means_df %>%
       trt_effects(by_trial = FALSE)
   } else if (type == "ipw") {
-    trt_effects_df = data %>%
+    means_df = data %>%
       ipw_estimator(
         formula_T = formula_T,
         formula_CC = formula_CC,
@@ -37,11 +40,13 @@ estimate_DSCAP <- function(data,
         target_trial = target_trial,
         estimate_weights = estimate_weights,
         CC_weight_var = CC_weight_var
-      ) %>%
+      ) 
+    
+    trt_effects_df = means_df %>%
       trt_effects(by_trial = FALSE)
-  } else if (type == "doubly-robust") {
-    trt_effects_df = data %>%
-      doubly_robust_estimator(
+  } else if (type == "doubly robust") {
+    means_df = data %>%
+      DR_estimator(
         formula_Y = formula_Y,
         formula_S = formula_S,
         formula_T = formula_T,
@@ -51,10 +56,34 @@ estimate_DSCAP <- function(data,
         target_trial = target_trial,
         estimate_weights = estimate_weights,
         CC_weight_var = CC_weight_var
-      ) %>%
+      ) 
+    
+    trt_effects_df = means_df %>%
       trt_effects(by_trial = FALSE)
   } else if (type == "naive") {
-    trt_effects_df = data %>%
+    means_df = data %>%
+      naive_estimator(
+        formula_CC = formula_CC,
+        trial_var = trial_var,
+        treatment_var = treatment_var,
+        estimate_weights = estimate_weights,
+        CC_weight_var = CC_weight_var
+      ) 
+    
+    trt_effects_df = means_df %>%
+      trt_effects(by_trial = TRUE)
+  }
+  
+  # If `corrected_target_trial` is TRUE, then we will use the treatment effect
+  # estimates based on corrected estimators (ipw, standardized, or
+  # doubly-robust) for the target trial. Otherwise, the treatment effect
+  # estimate on the target trial is based on the uncorrected mean in the target
+  # trial's active arm. 
+  if (!corrected_target_trial & type != "naive") {
+    # Estimate uncorrected mean in the target trial's active arm and use the
+    # control group's estimated mean (based on whatever method) to compute the
+    # treatment effects in the target trial.
+    naive_trt_effect_target_df = data %>%
       naive_estimator(
         formula_CC = formula_CC,
         trial_var = trial_var,
@@ -62,7 +91,15 @@ estimate_DSCAP <- function(data,
         estimate_weights = estimate_weights,
         CC_weight_var = CC_weight_var
       ) %>%
-      trt_effects(by_trial = TRUE)
+      filter(trial == target_trial, treatment != 0) %>%
+      bind_rows(means_df %>%
+                  filter(treatment == 0)) %>%
+      trt_effects(by_trial = FALSE)
+    # Replace the treatment effect estimates in the target trial with the
+    # uncorrected estimates.
+    trt_effects_df = trt_effects_df %>%
+      filter(treatment != naive_trt_effect_target_df$treatment) %>%
+      bind_rows(naive_trt_effect_target_df)
   }
   
   # Estimate the association measures given the trial-level treatment effect
@@ -91,6 +128,7 @@ inference_DSCAP <- function(data,
                             estimate_weights = FALSE,
                             CC_weight_var,
                             B,
+                            stratified_bs = TRUE,
                             alpha = 0.05) {
   # Estimate the trial-level treatment effects and association measures for the
   # original data.
@@ -131,19 +169,57 @@ inference_DSCAP <- function(data,
   }
   
   # Perform the bootstrap to obtain standard errors and confidence intervals for
-  # the association measures.
-  boot_out <- boot::boot(data = df, statistic = boot_fun, R = B)
+  # the association measures. If `stratified_bs` is TRUE, then we will resample
+  # within each trial.
+  if (stratified_bs) {
+    strata = data[[trial_var]]
+  } else {
+    strata = rep(1, nrow(data))
+  }
+  
+  boot_out <- boot::boot(
+    data = data,
+    statistic = boot_fun,
+    R = B,
+    strata = strata
+  )
   # Compute bootstrap CIs and SEs for all estimates in estimates_df.
   estimates_df = estimates_df %>%
     mutate(
-      CI_lower_bs = purrr::map_dbl(
-        1:nrow(estimates_df),
-        ~ boot::boot.ci(boot_out, type = "perc", index = .x, conf = 1 - alpha)$percent[4]
-      ),
-      CI_upper_bs = purrr::map_dbl(
-        1:nrow(estimates_df),
-        ~ boot::boot.ci(boot_out, type = "perc", index = .x, conf = 1 - alpha)$percent[5]
-      ),
+      CI_lower_bs = purrr::map_dbl(1:nrow(estimates_df), function(.x) {
+        ci_limit <- tryCatch(
+          expr = {
+            boot::boot.ci(boot_out,
+                          type = "perc",
+                          index = .x,
+                          conf = 1 - alpha)$percent[4]
+          },
+          error = function(e) {
+            NA
+          }
+        ) 
+        if (!is.numeric(ci_limit)) {
+          ci_limit = NA
+        }
+        return(ci_limit)
+      }),
+      CI_upper_bs = purrr::map_dbl(1:nrow(estimates_df), function(.x) {
+        ci_limit <- tryCatch(
+          expr = {
+            boot::boot.ci(boot_out,
+                          type = "perc",
+                          index = .x,
+                          conf = 1 - alpha)$percent[5]
+          },
+          error = function(e) {
+            NA
+          }
+        ) 
+        if (!is.numeric(ci_limit)) {
+          ci_limit = NA
+        }
+        return(ci_limit)
+      }),
       SE_bs = apply(boot_out$t, 2, sd)
     )
   
