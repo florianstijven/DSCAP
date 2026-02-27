@@ -18,7 +18,6 @@ generate_simulated_data <- function(
     theta,
     zeta,
     CC_sampling = FALSE,
-    ZOPT = NULL,
     target_trial = NULL
 ) {
   

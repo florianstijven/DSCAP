@@ -184,7 +184,7 @@ ipw_estimator <- function(data,
   # Compute the weighted means for Y and S for each treatment.
   ipw_means_df <- df_weights %>%
     left_join(df %>%
-                select(subject_id, treatment, Y, S),
+                select(subject_id, treatment, Y, S, Delta, CC_weight),
               by = "subject_id",
               relationship = "many-to-one") %>%
     # Multiply missingness indicator for whether desired treatment does not match observed
@@ -196,7 +196,7 @@ ipw_estimator <- function(data,
     # leads to better finite-sample performance.
     dplyr::summarize(
       mean_Y = sum(Y * W_hat_a) / sum(W_hat_a),
-      mean_S = sum(S * W_hat_a) / sum(W_hat_a)
+      mean_S = sum(S * W_hat_a * Delta * CC_weight) / sum(W_hat_a * Delta * CC_weight)
     )
   
   return(ipw_means_df)
@@ -305,6 +305,7 @@ DR_estimator <- function(data,
   
   # Compute correction terms to get the doubly-robust estimates of the means for
   # Y and S for each treatment.
+
   DR_corrections_df <- all_predictions_df %>%
     left_join(
       df_weights %>%
@@ -312,11 +313,17 @@ DR_estimator <- function(data,
       by = c("subject_id", "treatment_pred"),
       relationship = "one-to-one"
     ) %>%
+    left_join(
+      df %>%
+        select(subject_id, Delta, CC_weight),
+      by = "subject_id",
+      relationship = "many-to-one"
+    ) %>%
     mutate(W_hat_a = ifelse(treatment == treatment_pred, weight, 0)) %>%
     group_by(treatment) %>%
     dplyr::summarize(
-      mean_Y_correction = mean(W_hat_a * (Y - predicted_Y_a) / mean(W_hat_a)),
-      mean_S_correction = mean(W_hat_a * (S - predicted_S_a) / mean(W_hat_a))
+      mean_Y_correction = sum(W_hat_a * (Y - predicted_Y_a) * Delta * CC_weight) / sum(W_hat_a * Delta * CC_weight),
+      mean_S_correction = sum(W_hat_a * (S - predicted_S_a) * Delta * CC_weight) / sum(W_hat_a * Delta * CC_weight)
     )
   
   # Add the correction terms to the standardized means to get the doubly-robust
@@ -350,32 +357,16 @@ naive_estimator <- function(data,
     estimate_weights,
     CC_weight_var
   )
-  
-  # Does the analysis require case-cohort sampling?
-  CC_sampling = estimate_weights | !is.null(CC_weight_var)
-  
-  # Compute the naive trial-specific means.
-  if (CC_sampling == TRUE) {
-    naive_means_df = df %>%
-      group_by(trial, treatment) %>%
-      dplyr::summarize(
-        mean_Y = mean(Y),
-        n = n(),
-        mean_S = mean(weight * S),
-        var_S = var(weight * S),
-        .groups = "drop"
-      )
-  } else{
-    naive_means_df = df %>%
-      group_by(trial, treatment) %>%
-      dplyr::summarize(
-        mean_Y = mean(Y),
-        n = n(),
-        mean_S = mean(S),
-        var_S = var(S),
-        .groups = "drop"
-      )
-  }
+
+  naive_means_df = df %>%
+    group_by(trial, treatment) %>%
+    dplyr::summarize(
+      mean_Y = mean(Y),
+      n = n(),
+      mean_S = sum(Delta * CC_weight * S) / sum(Delta * CC_weight),
+      var_S = var(Delta * CC_weight * S),
+      .groups = "drop"
+    )
   
   return(naive_means_df)
 }
