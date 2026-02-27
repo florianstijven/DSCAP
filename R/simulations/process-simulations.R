@@ -5,7 +5,7 @@ library(ggpubr)
 
 # Specify options for saving the plots to files
 figures_dir = "results/simulations/figures/"
-tables_dir = "results/simulations/tables"
+tables_dir = "results/simulations/tables/"
 
 # Read in simulation results
 simulations_results_tbl <- readRDS(
@@ -16,20 +16,35 @@ simulations_results_tbl <- readRDS(
 # the bias, MSE, and coverage of the confidence intervals.
 true_values_tbl <- readRDS(
   file = "results/simulations/raw-results/true_values_tbl.rds"
-)
+) %>%
+  select(-n_t, -CC_sampling, -type) %>%
+  rename(estimand = estimate)
+
+# Join the simulations results wit the estimands.
+simulations_results_tbl <- simulations_results_tbl %>%
+  left_join(true_values_tbl,
+            by = c("setting", "n_trials", "measure", "treatment"))
 
 
 # Compute summaries from the simulation results
-ma_sim_summary = simulations_results_tbl %>%
-  group_by(setting, , n_trials, n_t, CC_sampling, measure, type, treatment) %>%
+simulations_summary_tbl = simulations_results_tbl %>%
+  filter(measure != "permutation_LRT_p_value") %>%
+  group_by(setting, n_trials, n_t, CC_sampling, measure, type, treatment) %>%
   summarise(
     coverage = mean((estimand >= CI_lower_bs) &
                       (estimand <= CI_upper_bs), na.rm = TRUE),
     mean_bias = mean(estimate - estimand, na.rm = TRUE),
     median_bias = median(estimate - estimand, na.rm = TRUE),
-    emp_SD = sqrt(mean((estimate - estimand)^2, na.rm = TRUE)),
+    emp_SD = sd(estimate, na.rm = TRUE),
     mean_SE = mean(SE_bs, na.rm = TRUE),
     MSE = mean((estimand - estimate)^2, na.rm = TRUE)
+  )
+
+error_rates_permutation_tbl = simulations_results_tbl %>%
+  filter(measure == "permutation_LRT_p_value") %>%
+  group_by(setting, n_trials, n_t, CC_sampling) %>%
+  summarise(
+    type_I_error_rate = mean(estimate < 0.05, na.rm = TRUE)
   )
 
 # Summary of the Simulation Results ---------------------------------------
@@ -38,21 +53,19 @@ ma_sim_summary = simulations_results_tbl %>%
 
 ### Bias ------------------------------------------------------------------
 
-mean_bias = ma_sim_summary %>%
-  filter(setting == "small N, large n", CI_type == "sandwich") %>%
+mean_bias = simulations_summary_tbl %>%
+  filter(measure %in% c("cor_s_est", "cor_p_est", "beta_est")) %>%
   ggplot(aes(
-    x = N,
+    x = n_t,
     y = mean_bias,
-    color = surrogate_index_estimator,
-    linetype = `PD correction`
+    color = CC_sampling
   )) +
   geom_point(position = position_dodge(width = 0.1)) +
   geom_line() +
   geom_abline(intercept = 0, slope = 0) +
-  scale_x_continuous(breaks = c(6, 12, 24)) +
   scale_y_continuous(name = "Mean Bias") +
-  scale_color_discrete(name = "Surr. Index Estimator") +
-  facet_grid(SI_violation ~ scenario) + 
+  scale_color_discrete(name = "Case Cohort Design") +
+  facet_grid(measure ~ setting, scales = "free_y") + 
   theme(legend.position = "bottom", legend.box = "vertical", legend.spacing.y = unit(0, "cm"))
 
 ggsave(
@@ -66,21 +79,19 @@ ggsave(
   units = "cm"
 )
 
-median_bias = ma_sim_summary %>%
-  filter(setting == "small N, large n", CI_type == "sandwich") %>%
+median_bias = simulations_summary_tbl %>%
+  filter(measure %in% c("cor_s_est", "cor_p_est", "beta_est")) %>%
   ggplot(aes(
-    x = N,
+    x = n_t,
     y = median_bias,
-    color = surrogate_index_estimator,
-    linetype = `PD correction`
+    color = CC_sampling
   )) +
   geom_point(position = position_dodge(width = 0.1)) +
   geom_line() +
   geom_abline(intercept = 0, slope = 0) +
-  scale_x_continuous(breaks = c(6, 12, 24)) +
   scale_y_continuous(name = "Median Bias") +
-  scale_color_discrete(name = "Surr. Index Estimator") +
-  facet_grid(SI_violation ~ scenario) + 
+  scale_color_discrete(name = "Case Cohort Design") +
+  facet_grid(measure ~ setting, scales = "free_y") + 
   theme(legend.position = "bottom", legend.box = "vertical", legend.spacing.y = unit(0, "cm"))
 
 ggsave(
@@ -96,56 +107,23 @@ ggsave(
 
 ### MSE -------------------------------------------------------------------
 
-mse_plot = ma_sim_summary %>%
-  filter(setting == "small N, large n", CI_type == "sandwich") %>%
+mse_plot = simulations_summary_tbl %>%
+  filter(measure %in% c("cor_s_est", "cor_p_est", "beta_est")) %>%
   ggplot(aes(
-    x = N,
+    x = n_t,
     y = MSE,
-    color = surrogate_index_estimator,
-    linetype = `PD correction`
+    color = CC_sampling
   )) +
   geom_point(position = position_dodge(width = 0.1)) +
   geom_line() +
-  geom_abline(intercept = 0, slope = 0) +
-  scale_x_continuous(breaks = c(6, 12, 24)) +
   scale_y_continuous(name = "MSE", transform = "log10") +
-  scale_color_discrete(name = "Surr. Index Estimator") +
-  facet_grid(SI_violation ~ scenario) + 
+  scale_color_discrete(name = "Case Cohort Design") +
+  facet_grid(measure ~ setting, scales = "free_y") + 
   theme(legend.position = "bottom", legend.box = "vertical", legend.spacing.y = unit(0, "cm"))
 
 ggsave(
   plot = mse_plot,
   filename = "mse.pdf",
-  path = figures_dir,
-  height = double_height,
-  width = double_width,
-  dpi = res,
-  device = "pdf",
-  units = "cm"
-)
-
-# Put the mean bias and MSE plots into a single figure.
-ggarrange(
-  mean_bias, mse_plot, common.legend = TRUE, legend = "bottom", labels = "auto", nrow = 2
-)
-
-ggsave(
-  filename = "mse-mean-bias.pdf",
-  path = figures_dir,
-  height = double_height,
-  width = double_width,
-  dpi = res,
-  device = "pdf",
-  units = "cm"
-)
-
-# Put the median bias and MSE plots into a single figure.
-ggarrange(
-  median_bias, mse_plot, common.legend = TRUE, legend = "bottom", labels = "auto", nrow = 2
-)
-
-ggsave(
-  filename = "mse-median-bias.pdf",
   path = figures_dir,
   height = double_height,
   width = double_width,
@@ -160,26 +138,24 @@ ggsave(
 ### Coverage --------------------------------------------------------------
 coverage_limits = c(0.65, 1)
 
-coverage_sandwich = ma_sim_summary %>%
-  filter(setting == "small N, large n", CI_type == "sandwich") %>%
+coverage_bs = simulations_summary_tbl %>%
+  filter(measure %in% c("cor_s_est", "cor_p_est", "beta_est")) %>%
   ggplot(aes(
-    x = N,
+    x = n_t,
     y = coverage,
-    color = surrogate_index_estimator,
-    linetype = `PD correction`
+    color = CC_sampling
   )) +
   geom_point(position = position_dodge(width = 0.1)) +
   geom_line() +
   geom_abline(intercept = 0.95, slope = 0) +
-  scale_x_continuous(breaks = c(6, 12, 24)) +
   scale_y_continuous(name = "Coverage", limits = coverage_limits) +
-  scale_color_discrete(name = "Surr. Index Estimator") +
-  facet_grid(SI_violation ~ scenario) + 
+  scale_color_discrete(name = "Case Cohort Design") +
+  facet_grid(measure ~ setting, scales = "free_y") + 
   theme(legend.position = "bottom", legend.box = "vertical", legend.spacing.y = unit(0, "cm"))
 
 ggsave(
-  plot = coverage_sandwich,
-  filename = "coverage-sandwich.pdf",
+  plot = coverage_bs,
+  filename = "coverage.pdf",
   path = figures_dir,
   height = double_height,
   width = double_width,
@@ -188,287 +164,15 @@ ggsave(
   units = "cm"
 )
 
-coverage_bs_bca = ma_sim_summary %>%
-  filter(setting == "small N, large n", CI_type == "BCa") %>%
-  ggplot(aes(
-    x = N,
-    y = coverage,
-    color = surrogate_index_estimator,
-    linetype = `PD correction`
-  )) +
-  geom_point(position = position_dodge(width = 0.1)) +
-  geom_line() +
-  geom_abline(intercept = 0.95, slope = 0) +
-  scale_x_continuous(breaks = c(6, 12, 24)) +
-  scale_y_continuous(name = "Coverage", limits = coverage_limits) +
-  scale_color_discrete(name = "Surr. Index Estimator") +
-  facet_grid(SI_violation ~ scenario) + 
-  theme(legend.position = "bottom", legend.box = "vertical", legend.spacing.y = unit(0, "cm"))
+# Tables ---------------------------------------------------------------
 
-ggsave(
-  plot = coverage_bs_bca,
-  filename = "coverage-bootstrap-bca.pdf",
-  path = figures_dir,
-  height = double_height,
-  width = double_width,
-  dpi = res,
-  device = "pdf",
-  units = "cm"
-)
+sink(file = paste0(tables_dir, "simulation-results-summary.txt"))
+simulations_summary_tbl %>%
+  filter(measure %in% c("cor_s_est", "cor_p_est", "beta_est")) %>%
+  arrange(setting, measure, n_trials, n_t) %>%
+  print(n = 500)
+sink()
 
-
-coverage_bc_percentile = ma_sim_summary %>%
-  filter(setting == "small N, large n", CI_type == "BC percentile") %>%
-  ggplot(aes(
-    x = N,
-    y = coverage,
-    color = surrogate_index_estimator,
-    linetype = `PD correction`
-  )) +
-  geom_point(position = position_dodge(width = 0.1)) +
-  geom_line() +
-  geom_abline(intercept = 0.95, slope = 0) +
-  scale_x_continuous(breaks = c(6, 12, 24)) +
-  scale_y_continuous(name = "Coverage", limits = coverage_limits) +
-  scale_color_discrete(name = "Surr. Index Estimator") +
-  facet_grid(SI_violation ~ scenario) + 
-  theme(legend.position = "bottom", legend.box = "vertical", legend.spacing.y = unit(0, "cm"))
-
-ggsave(
-  plot = coverage_bc_percentile,
-  filename = "coverage-bootstrap-bc-percentile.pdf",
-  path = figures_dir,
-  height = double_height,
-  width = double_width,
-  dpi = res,
-  device = "pdf",
-  units = "cm"
-)
-
-
-coverage_bayesian = ma_sim_summary %>%
-  filter(setting == "small N, large n", CI_type == "Bayesian") %>%
-  ggplot(aes(
-    x = N,
-    y = coverage,
-    color = surrogate_index_estimator
-  )) +
-  geom_point(position = position_dodge(width = 0.1)) +
-  geom_line() +
-  geom_abline(intercept = 0.95, slope = 0) +
-  scale_x_continuous(breaks = c(6, 12, 24)) +
-  scale_y_continuous(name = "Coverage", limits = coverage_limits) +
-  scale_color_discrete(name = "Surr. Index Estimator") +
-  facet_grid(SI_violation ~ scenario) + 
-  theme(legend.position = "bottom", legend.box = "vertical", legend.spacing.y = unit(0, "cm"))
-
-ggsave(
-  plot = coverage_bayesian,
-  filename = "coverage-bayesian.pdf",
-  path = figures_dir,
-  height = double_height,
-  width = double_width,
-  dpi = res,
-  device = "pdf",
-  units = "cm"
-)
-
-
-ggarrange(
-  coverage_sandwich, coverage_bs_bca, coverage_bayesian, common.legend = TRUE, legend = "bottom", labels = "auto", nrow = 3
-)
-
-ggsave(
-  filename = "coverage-combined.pdf",
-  path = figures_dir,
-  height = double_height * (4 / 3),
-  width = double_width,
-  dpi = res,
-  device = "pdf",
-  units = "cm"
-)
-
-coverage_large_N_bca = ma_sim_summary %>%
-  filter(setting == "large N, small n", CI_type == "BCa", nearest_PD == FALSE) %>%
-  ggplot(aes(
-    x = N,
-    y = coverage,
-    color = as.factor(n)
-  )) +
-  geom_point(position = position_dodge(width = 0.1)) +
-  geom_line() +
-  geom_abline(intercept = 0.95, slope = 0) +
-  scale_y_continuous(name = "Coverage", limits = c(0, 1)) +
-  scale_x_continuous(breaks = c(100, 500, 1000, 2000, 5000)) +
-  scale_color_discrete(name = "n") +
-  theme(legend.position = "bottom", legend.box = "vertical", legend.spacing.y = unit(0, "cm"))
-
-ggsave(
-  plot = coverage_large_N_bca,
-  filename = "coverage-bootstrap-bca-large-N.pdf",
-  path = figures_dir,
-  height = single_height,
-  width = single_width,
-  dpi = res,
-  device = "pdf",
-  units = "cm"
-)
-
-coverage_large_N_sandwich = ma_sim_summary %>%
-  filter(setting == "large N, small n", CI_type == "sandwich", nearest_PD == FALSE) %>%
-  ggplot(aes(
-    x = N,
-    y = coverage,
-    color = as.factor(n)
-  )) +
-  geom_point(position = position_dodge(width = 0.1)) +
-  geom_line() +
-  geom_abline(intercept = 0.95, slope = 0) +
-  scale_y_continuous(name = "Coverage", limits = 0:1) +
-  scale_x_continuous(breaks = c(100, 500, 1000, 2000, 5000)) +
-  scale_color_discrete(name = "n") +
-  theme(legend.position = "bottom", legend.box = "vertical", legend.spacing.y = unit(0, "cm"))
-
-ggsave(
-  plot = coverage_large_N_sandwich,
-  filename = "coverage-sandwich-large-N.pdf",
-  path = figures_dir,
-  height = single_height,
-  width = single_width,
-  dpi = res,
-  device = "pdf",
-  units = "cm"
-)
-
-ggarrange(
-  coverage_large_N_sandwich, coverage_large_N_bca, common.legend = TRUE, legend = "bottom", labels = "auto", nrow = 2
-)
-
-ggsave(
-  filename = "coverage-combined-large-N.pdf",
-  path = figures_dir,
-  height =double_height,
-  width =double_width,
-  dpi = res,
-  device = "pdf",
-  units = "cm"
-)
-
-
-### Distribution of lower limits ------------------------------------------
-
-ma_sim_results %>%
-  filter(
-    surrogate_index_estimator != "surrogate",
-    setting == "small N, large n",
-    scenario == "proof-of-concept",
-    nearest_PD == FALSE,
-    CI_type == "BCa"
-  ) %>%
-  mutate(surrogate_index_estimator = fct_drop(surrogate_index_estimator, only = c("surrogate"))) %>%
-  ggplot(aes(x = rho_ci_lower), fill = "gray") +
-  geom_histogram(alpha = 0.5, position = "identity", color = "black") +
-  scale_x_continuous(lim = c(-1, 1), name = expr(rho[trial])) +
-  scale_color_discrete(name = "Surr. Index Estimator", drop = FALSE) +
-  facet_grid(SI_violation ~ N, scales = "free") +
-  theme(legend.position = "bottom")
-
-ggsave(
-  filename = "lower-limit-proof-of-concept-no-nearest-PD-bootstrap-BCa.pdf",
-  path = figures_dir,
-  height = double_height,
-  width = double_width,
-  dpi = res,
-  device = "pdf",
-  units = "cm"
-)
-
-ma_sim_results %>%
-  filter(
-    setting == "small N, large n",
-    scenario == "vaccine",
-    nearest_PD == FALSE,
-    CI_type == "BCa"
-  ) %>%
-  mutate(surrogate_index_estimator = fct_drop(surrogate_index_estimator, only = c("surrogate"))) %>%
-  # There is a negative trial-level correlation for the untransformed surrogate.
-  # We therefore use -1 * the upper limit for this setting to be comparable to
-  # with the estimated surrogate index.
-  mutate(
-    rho_ci_lower = ifelse(
-      surrogate_index_estimator == "surrogate",-1 * rho_ci_upper,
-      rho_ci_lower
-    )
-  ) %>%
-  ggplot(aes(x = rho_ci_lower, fill = SI_violation)) +
-  geom_density(alpha = 0.5,
-               color = "black",
-               bounds = c(-1, 1)) +
-  scale_x_continuous(name = expr(paste("Lower CI limit for ", rho[trial] ^
-                                         {
-                                           (g[N])
-                                         }))) +
-  scale_fill_discrete(name = "Violation of Surrogacy and Comparability", drop = FALSE) +
-  facet_grid(surrogate_index_estimator ~ N_chr, scales = "free") +
-  theme(legend.position = "bottom")
-
-ggsave(
-  filename = "lower-limit-vaccine-no-nearest-PD-bootstrap.pdf",
-  path = figures_dir,
-  height = double_height,
-  width = double_width,
-  dpi = res,
-  device = "pdf",
-  units = "cm"
-)
-
-### SE estimator ----------------------------------------------------------
-
-
-## Failure of Asymptotics -------------------------------------------------
-
-ma_sim_results %>% filter(setting == "large N, small n") %>%
-  mutate(
-    Z = (rho_est - rho_true) / rho_se,
-    N_chr = fct_rev(N_chr),
-    n_chr = factor(
-      x = n,
-      levels = c(100, 500, 1000, 2000, 5000),
-      labels = paste0("n = ", c(100, 500, 1000, 2000, 5000)),
-      ordered = TRUE
-    )
-  ) %>%
-  ggplot(aes(x = Z)) +
-  geom_histogram(aes(y = after_stat(density)), fill = "gray", color = "black", bins = 16) +
-  # Add standard normal density.
-  geom_line(aes(x = x, y = d), 
-            data = tibble(
-              x = seq(
-                from = -4,
-                to = 4,
-                length.out = 1e3
-              ),
-              d = dnorm(seq(
-                from = -4,
-                to = 4,
-                length.out = 1e3
-              ))
-            ) %>% cross_join(tibble(
-              N_f = factor(
-                as.character(c(5000, 2000, 1000, 500, 100)),
-                levels = c("5000", "2000", "1000", "500", "100"),
-                ordered = TRUE
-              )
-            )), color = "red") +
-  xlim(c(-4, 4)) +
-  facet_grid(N_chr ~ n_chr)
-
-ggsave(
-  filename = "failure-asymptotics.pdf",
-  path = figures_dir,
-  height = double_height,
-  width = double_width,
-  dpi = res,
-  device = "pdf",
-  units = "cm"
-)
+sink(file = paste0(tables_dir, "LRT-results.txt"))
+error_rates_permutation_tbl
+sink()
