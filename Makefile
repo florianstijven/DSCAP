@@ -19,7 +19,7 @@ formula = risk_score+age.geq.65+riskxage+BMI_underweight_normal
 all: application simulation
 
 simulation: results/simulations/raw-results/simulations_results_tbl.rds \
-	results/simulations/plots/true_values_tbl.rds
+	results/simulations/raw-results/true_values_tbl.rds
 
 application: R/neut_AZ_full_M1_estwts.Rout R/spike_AZ_full_M1_estwts.Rout \
 	R/neut_AZ_truncated_M2_estwts.Rout R/spike_AZ_truncated_M2_estwts.Rout \
