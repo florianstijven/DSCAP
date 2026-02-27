@@ -75,6 +75,22 @@ estimate_DSCAP <- function(data,
       trt_effects(by_trial = TRUE)
   }
   
+  # If any estimated proportions are zero, add 0.5 divided by that treatment
+  # group's sample size to the estimated proportion.
+  if (any(means_df$mean_Y == 0)) {
+    if (type == "naive") {
+      means_df = means_df %>%
+        group_by(trial, treatment) %>%
+        mutate(mean_Y = ifelse(mean_Y == 0, 0.5 / n(), mean_Y)) %>%
+        ungroup()
+    } else {
+      means_df = means_df %>%
+        group_by(treatment) %>%
+        mutate(mean_Y = ifelse(mean_Y == 0, 0.5 / n(), mean_Y)) %>%
+        ungroup()
+    }
+  }
+  
   # If `corrected_target_trial` is TRUE, then we will use the treatment effect
   # estimates based on corrected estimators (ipw, standardized, or
   # doubly-robust) for the target trial. Otherwise, the treatment effect
@@ -104,10 +120,7 @@ estimate_DSCAP <- function(data,
       bind_rows(naive_trt_effect_target_df)
   }
   
-  
-  if (any(is.na(trt_effects_df$VE_est)) | any(is.na(trt_effects_df$mean_diff_S_est))) {
-    browser()
-  }
+
   # Estimate the association measures given the trial-level treatment effect
   # estimates.
   association_measures_df = association_measures(trt_effects_df)
