@@ -17,13 +17,21 @@ simulations_results_tbl <- readRDS(
 true_values_tbl <- readRDS(
   file = "results/simulations/raw-results/true_values_tbl.rds"
 ) %>%
-  select(-n_t, -CC_sampling, -type) %>%
+  select(-type) %>%
   rename(estimand = estimate)
 
 # Join the simulations results wit the estimands.
 simulations_results_tbl <- simulations_results_tbl %>%
-  left_join(true_values_tbl,
-            by = c("setting", "n_trials", "measure", "treatment"))
+  left_join(true_values_tbl %>%
+              filter(target_trial == "standardized") %>%
+              select(-target_trial),
+            by = c("setting", "n_trials", "measure", "treatment"),
+            relationship = "many-to-one")
+
+true_values_tbl %>%
+  filter(target_trial == "standardized") %>%
+  select(-target_trial) %>%
+  group_by(setting, n_trials, measure, treatment)
 
 
 # Compute summaries from the simulation results
@@ -49,6 +57,35 @@ error_rates_permutation_tbl = simulations_results_tbl %>%
 
 # Summary of the Simulation Results ---------------------------------------
 
+## True Trial-Level Effects -----------------------------------------------
+
+# Plot the true trial-level effects (unstandardized and standardized) for each
+# setting and treatment arm. 
+true_effects_plot = true_values_tbl %>%
+  filter(measure %in% c("VE_est", "mean_diff_S_est")) %>%
+  pivot_wider(names_from = "measure", values_from = "estimand") %>%
+  ggplot(aes(
+    x = mean_diff_S_est,
+    y = VE_est
+  )) +
+  geom_point() +
+  scale_y_continuous(name = "VE") +
+  scale_x_continuous(name = "Mean Difference in S") +
+  facet_grid(target_trial~setting) +  
+  theme(legend.position = "bottom", legend.box = "vertical", legend.spacing.y = unit(0, "cm"))
+
+ggsave(
+  plot = true_effects_plot,
+  filename = "ma-plots.pdf",
+  path = figures_dir,
+  height = double_height,
+  width = double_width,
+  dpi = res,
+  device = "pdf",
+  units = "cm"
+)
+
+
 ## Estimation Accuracies --------------------------------------------------
 
 ### Bias ------------------------------------------------------------------
@@ -58,10 +95,9 @@ mean_bias = simulations_summary_tbl %>%
   ggplot(aes(
     x = n_t,
     y = mean_bias,
-    color = CC_sampling
+    color = type
   )) +
   geom_point(position = position_dodge(width = 0.1)) +
-  geom_line() +
   geom_abline(intercept = 0, slope = 0) +
   scale_y_continuous(name = "Mean Bias") +
   scale_color_discrete(name = "Case Cohort Design") +
@@ -84,12 +120,11 @@ median_bias = simulations_summary_tbl %>%
   ggplot(aes(
     x = n_t,
     y = median_bias,
-    color = CC_sampling
+    color = type
   )) +
   geom_point(position = position_dodge(width = 0.1)) +
-  geom_line() +
   geom_abline(intercept = 0, slope = 0) +
-  scale_y_continuous(name = "Median Bias") +
+  scale_y_continuous(name = "Mean Bias") +
   scale_color_discrete(name = "Case Cohort Design") +
   facet_grid(measure ~ setting, scales = "free_y") + 
   theme(legend.position = "bottom", legend.box = "vertical", legend.spacing.y = unit(0, "cm"))
@@ -112,10 +147,9 @@ mse_plot = simulations_summary_tbl %>%
   ggplot(aes(
     x = n_t,
     y = MSE,
-    color = CC_sampling
+    color = type
   )) +
   geom_point(position = position_dodge(width = 0.1)) +
-  geom_line() +
   scale_y_continuous(name = "MSE", transform = "log10") +
   scale_color_discrete(name = "Case Cohort Design") +
   facet_grid(measure ~ setting, scales = "free_y") + 
@@ -143,7 +177,7 @@ coverage_bs = simulations_summary_tbl %>%
   ggplot(aes(
     x = n_t,
     y = coverage,
-    color = CC_sampling
+    color = type
   )) +
   geom_point(position = position_dodge(width = 0.1)) +
   geom_line() +
@@ -166,6 +200,8 @@ ggsave(
 
 # Tables ---------------------------------------------------------------
 
+# Print the performance measures for the estimators including trial-level
+# standardized effects and DSCAPs.
 sink(file = paste0(tables_dir, "simulation-results-summary.txt"))
 simulations_summary_tbl %>%
   filter(measure %in% c("cor_s_est", "cor_p_est", "beta_est")) %>%
@@ -173,6 +209,16 @@ simulations_summary_tbl %>%
   print(n = 500)
 sink()
 
+# Print the error rates for the permutation LRT. 
 sink(file = paste0(tables_dir, "LRT-results.txt"))
 error_rates_permutation_tbl
 sink()
+
+# Print the true trial-level standardized effects.
+sink(file = paste0(tables_dir, "true-trial-level-effects.txt"))
+true_values_tbl %>%
+  filter(measure %in% c("VE_est", "mean_diff_S_est")) %>%
+  pivot_wider(names_from = "measure", values_from = "estimand") %>%
+  print(n = 500)
+sink()
+

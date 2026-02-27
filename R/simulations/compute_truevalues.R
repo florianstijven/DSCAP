@@ -25,6 +25,16 @@ source("R/simulations/parameter_values.R")
 # the true values) to a large number `n_MC`.
 dgm_param_tbl$n_t = n_MC
 
+# We need one row per setting for generating data.  
+dgm_param_tbl = dgm_param_tbl %>%
+  group_by(setting) %>%
+  slice(1) %>%
+  ungroup() %>%
+  # The target parameters (trial-level treatment effects etc) do not depend on
+  # case-cohort sampling, so we can drop this variable to avoid redundant
+  # computations.
+  select(-CC_sampling)
+
 # Define formulas for the outcome models for (i) clinical outcome Y and (ii)
 # surrogate outcome S. The same linear predictors are used for both models. In
 # the simulations, the corresponding models are automatically stratified by
@@ -101,11 +111,6 @@ simulate_and_analyze <- function(n_trials,
 data_set_indicator = 1
 
 true_values_tbl <- expand_grid(data_set_indicator, dgm_param_tbl) %>%
-  # The target parameters (trial-level treatment effects etc) do not depend on
-  # case-cohort sampling, so we can drop this variable to avoid redundant
-  # computations.
-  filter(CC_sampling == FALSE) %>%
-  select(-CC_sampling) %>%
   # The estimands are compute both the naive and the standardized ones. If
   # `target_trial` = NULL, the data are generated according to the "default" DGP
   # and MC approximation returns naive values. Setting `target_trial` = 1 means
@@ -142,7 +147,11 @@ true_values_tbl$inferences_tbl = future_pmap(
 # contains one estimate for a given parameter. Hence, the estimates and
 # inferences for a single simulated data set span many rows.
 true_values_tbl = true_values_tbl %>%
-  select(-theta, -gamma, -zeta, -data_set_indicator) %>%
+  # Recode the `target_trial` variable to be more interpretable.
+  rowwise(everything()) %>%
+  summarize(target_trial = ifelse(is.null(target_trial), "naive", "standardized")) %>%
+  ungroup() %>%
+  select(-theta, -gamma, -zeta, -data_set_indicator, -n_t) %>%
   unnest(inferences_tbl)
 
 # Save Results -------------------------------------------------------------
