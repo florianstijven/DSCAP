@@ -1,10 +1,10 @@
-analysishelpers = R/helper-functions/DSCAP-estimators.R R/helper-functions/permutation-LRT.R R/helper-functions/treatment-effect-estimators.R
-simulationhelpers = R/simulations/generate-simulated-data.R R/simulations/parameter-values.R 
-
 # Number of bootstrap replications and replications for the permutation test.
-B = 2000
+B = 20
+# Number of MC replications for the simulations 
+N_MC = 10
 # Rscripts that contain helper functions.
-helpers = R/helper-functions/estFUN.R R/helper-functions/runDSCAP.R
+analysishelpers = R/helper-functions/DSCAP-estimators.R R/helper-functions/permutation-LRT.R R/helper-functions/treatment-effect-estimators.R
+simulationhelpers = R/simulations/generate_simulated_data.R R/simulations/parameter_values.R 
 # Filename of the processed data. This can either be the original processed data
 # or the synthetic processed data. 
 data = data/processed_data.csv
@@ -16,7 +16,7 @@ formula = risk_score+age.geq.65+riskxage+BMI_underweight_normal
 
 all: application simulation
 
-simulation: results/simulations/raw-results/simulation_results_tbl.rds
+simulation: results/simulations/raw-results/simulations_results_tbl.rds
 
 application: R/neut_AZ_full_M1_estwts.Rout R/spike_AZ_full_M1_estwts.Rout \
 	R/neut_AZ_truncated_M2_estwts.Rout R/spike_AZ_truncated_M2_estwts.Rout \
@@ -32,18 +32,18 @@ application: R/neut_AZ_full_M1_estwts.Rout R/spike_AZ_full_M1_estwts.Rout \
 
 # Analyses with all trials. 
 
-R/neut_AZ_full_M1_estwts.Rout: R/estimate_dscap.R $(helpers) $(data)
+R/neut_AZ_full_M1_estwts.Rout: R/estimate_dscap.R $(analysishelpers) $(data)
 	Rscript --verbose R/estimate_dscap.R neut AZ $(formula) 1 $(B) $(B) 1 0 $(data) > $@ 2> $@
 	
-R/spike_AZ_full_M1_estwts.Rout: R/estimate_dscap.R $(helpers) $(data)
+R/spike_AZ_full_M1_estwts.Rout: R/estimate_dscap.R $(analysishelpers) $(data)
 	Rscript --verbose R/estimate_dscap.R spike AZ $(formula) 1 $(B) $(B) 1 0 $(data) > $@ 2> $@
 	
 # Analyses with J&J (Colombia), J&J (Brazil), and Novavax left out 
 
-R/neut_AZ_truncated_M2_estwts.Rout: R/estimate_dscap.R $(helpers) $(data)
+R/neut_AZ_truncated_M2_estwts.Rout: R/estimate_dscap.R $(analysishelpers) $(data)
 	Rscript --verbose R/estimate_dscap.R neut AZ $(formula) 2 $(B) $(B) 1 1 $(data) > $@ 2> $@
 	
-R/spike_AZ_truncated_M2_estwts.Rout: R/estimate_dscap.R $(helpers) $(data)
+R/spike_AZ_truncated_M2_estwts.Rout: R/estimate_dscap.R $(analysishelpers) $(data)
 	Rscript --verbose R/estimate_dscap.R spike AZ $(formula) 2 $(B) $(B) 1 1 $(data) > $@ 2> $@
 
 
@@ -53,5 +53,5 @@ R/plots_tables.Rout: R/neut_AZ_full_M1_estwts.Rout R/spike_AZ_full_M1_estwts.Rou
 	Rscript --verbose R/plots_tables.R AZ > $@ 2> $@
 	
 	
-results/simulations/raw-results/simulation_results_tbl.rds: R/simulations/run_simulation.R $(analysishelpers) $(simulationhelpers)
-	Rscript R/simulations/simulations.R proof-of-concept small 500
+results/simulations/raw-results/simulations_results_tbl.rds: R/simulations/run_simulation.R $(analysishelpers) $(simulationhelpers)
+	Rscript R/simulations/run_simulation.R $(N_MC) $(B) $(B)

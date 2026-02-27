@@ -257,9 +257,6 @@ association_measures <- function(trt_effects_df) {
                   method = "spearman")
   
   # Linear regression slope
-  if (any(is.na(trt_effects_df$VE_est)) | any(is.na(trt_effects_df$mean_diff_S_est))) {
-    browser()
-  }
   beta_est = coef(lm(VE_est ~ mean_diff_S_est, data = trt_effects_df))[2]
   
   association_measures_df = tibble(
