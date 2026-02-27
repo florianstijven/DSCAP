@@ -132,7 +132,7 @@ true_values_tbl$inferences_tbl = future_pmap(
 # contains one estimate for a given parameter. Hence, the estimates and
 # inferences for a single simulated data set span many rows.
 true_values_tbl = true_values_tbl %>%
-  select(-theta, -gamma, -data_set_indicator) %>%
+  select(-theta, -gamma, -zeta, -data_set_indicator) %>%
   unnest(inferences_tbl)
 
 # Save Results -------------------------------------------------------------
