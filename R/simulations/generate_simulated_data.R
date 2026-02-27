@@ -154,11 +154,11 @@ sample_row_covariates_trials <- function(zeta) {
   trial <- which.max(rmultinom(1, 1, probs))
   
   return(data.frame(X1 = X1, X2 = X2, trial = trial))
-})
+}
 
 # Sample covariates from the target trial covariate distribution and sample the
 # trial indicator from a uniform distribution on the trial indicators.
-sample_one_covariates_trials_target(zeta, target_trial) {
+sample_one_covariates_trials_target <- function(zeta, target_trial) {
   while (TRUE) {
     # We can sample covariate from the target trial covariate distribution by
     # sampling from the default DGP until the trial indicator is equal to the

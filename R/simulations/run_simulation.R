@@ -170,6 +170,7 @@ simulate_and_analyze <- function(n_trials,
                                  n_t,
                                  gamma,
                                  theta,
+                                 zeta,
                                  CC_sampling,
                                  ZOPT = NA,
                                  formula_S,
@@ -187,6 +188,7 @@ simulate_and_analyze <- function(n_trials,
     formula_Y = formula_Y,
     gamma = gamma,
     theta = theta,
+    zeta = zeta,
     CC_sampling = CC_sampling
   )
   
@@ -222,6 +224,7 @@ simulations_results_tbl$inferences_tbl = future_pmap(
     n_t = simulations_results_tbl$n_t,
     gamma = simulations_results_tbl$gamma,
     theta = simulations_results_tbl$theta,
+    zeta = simulations_results_tbl$zeta,
     CC_sampling = simulations_results_tbl$CC_sampling
   ),
   .f = simulate_and_analyze,
@@ -243,7 +246,7 @@ simulations_results_tbl$inferences_tbl = future_pmap(
 # contains one estimate for a given parameter. Hence, the estimates and
 # inferences for a single simulated data set span many rows.
 simulations_results_tbl = simulations_results_tbl %>%
-  select(-theta, -gamma) %>%
+  select(-theta, -gamma, -zeta) %>%
   unnest(inferences_tbl)
 
 
