@@ -6,6 +6,10 @@ data_preparation <- function(data,
                              target_trial,
                              estimate_weights = FALSE,
                              CC_weight_var) {
+  # If no target trial is specified, we set the target trial to 1 by default.
+  if (is.null(target_trial)) {
+    target_trial = 1
+  }
   # Use a new data frame to avoid modifying the input data frame.
   df = data
   # Add unique subject ids to the data frame. These ids are needed further on to

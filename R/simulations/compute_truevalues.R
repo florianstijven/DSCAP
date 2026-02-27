@@ -35,10 +35,6 @@ formula_S = as.formula(S ~ X1 + X2)
 # Define formula for trial participation model given covariates X (but not
 # treatment).
 formula_T = as.formula(trial ~ X1 + X2)
-# Formula for case-cohort sampling model (i.e., model for probability of being
-# sampled in the case-cohort sampling design given covariates X, treatment A,
-# outcome Y, and trial).
-formula_CC = as.formula(Delta ~ CC_stratum * trial * as.factor(A))
 
 # Helper Functions --------------------------------------------------------
 
@@ -74,7 +70,7 @@ simulate_and_analyze <- function(n_trials,
     theta = theta,
     zeta = zeta,
     CC_sampling = CC_sampling, 
-    target_trial = 1
+    target_trial = target_trial
   )
 
   # Analyze data.
@@ -104,7 +100,21 @@ simulate_and_analyze <- function(n_trials,
 # estimates and association measures for each data set.
 data_set_indicator = 1
 
-true_values_tbl <- expand_grid(data_set_indicator, dgm_param_tbl)
+true_values_tbl <- expand_grid(data_set_indicator, dgm_param_tbl) %>%
+  # The target parameters (trial-level treatment effects etc) do not depend on
+  # case-cohort sampling, so we can drop this variable to avoid redundant
+  # computations.
+  filter(CC_sampling == FALSE) %>%
+  select(-CC_sampling) %>%
+  # The estimands are compute both the naive and the standardized ones. If
+  # `target_trial` = NULL, the data are generated according to the "default" DGP
+  # and MC approximation returns naive values. Setting `target_trial` = 1 means
+  # that the data are generated according to the covariate distribution of trial
+  # 1 and MC approximation returns standardized values.
+  expand_grid(tibble(
+    target_trial = list(NULL, 1)
+  ))
+  
 
 true_values_tbl$inferences_tbl = future_pmap(
   .l = list(
@@ -113,13 +123,13 @@ true_values_tbl$inferences_tbl = future_pmap(
     gamma = true_values_tbl$gamma,
     theta = true_values_tbl$theta,
     zeta = true_values_tbl$zeta,
-    CC_sampling = true_values_tbl$CC_sampling
+    target_trial = true_values_tbl$target_trial
   ),
   .f = simulate_and_analyze,
   formula_S = formula_S,
   formula_Y = formula_Y,
   formula_T = formula_T,
-  target_trial = 1,
+  CC_sampling = FALSE,
   estimate_weights = FALSE,
   .options = furrr_options(
     seed = TRUE,
