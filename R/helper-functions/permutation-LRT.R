@@ -19,7 +19,7 @@ LRT_statistic <- function(data_subset, formula_Y) {
 
 
 # Function to compute the LRT test permutation p-value.
-permutation_LRT <- function(data, formula_Y, treatment_var, trial_var, n_permutations) {
+permutation_LRT <- function(data, formula_Y, treatment_var, trial_var, n_permutations, estimate_weights, CC_weight_var = NULL) {
   df <- data_preparation(
     data = data,
     formula_CC = formula_CC,

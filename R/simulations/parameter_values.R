@@ -81,3 +81,18 @@ param_tbl <- tibble(
   
   zeta = list(rbind(zeta1, zeta2, zeta3, zeta4))
 )
+
+# Tibble that contains all scenarios studied.
+dgm_param_tbl <- tibble(
+  setting = c("1", "2", "3"),
+  # Number of trials in each simulation.
+  n_trials = 5,
+  # Number of subjects in each trial.
+  n_t = 1000,
+  # Case-cohort sampling indicator. If TRUE, the data are generated according to a
+  # case-cohort sampling design. If FALSE, the data are generated according to a
+  # full-cohort design.
+  CC_sampling = c(FALSE, FALSE, FALSE)
+) %>%
+  # joint with parameter values for each setting.
+  left_join(param_tbl, by = "setting")

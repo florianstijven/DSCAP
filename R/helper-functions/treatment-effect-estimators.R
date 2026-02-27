@@ -337,6 +337,7 @@ naive_estimator <- function(data,
                             formula_CC,
                             trial_var = "trial",
                             treatment_var,
+                            target_trial,
                             estimate_weights = FALSE,
                             CC_weight_var,
                             alpha = 0.05) {

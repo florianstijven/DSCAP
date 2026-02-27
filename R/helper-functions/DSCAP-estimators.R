@@ -66,6 +66,7 @@ estimate_DSCAP <- function(data,
         formula_CC = formula_CC,
         trial_var = trial_var,
         treatment_var = treatment_var,
+        target_trial = target_trial,
         estimate_weights = estimate_weights,
         CC_weight_var = CC_weight_var
       ) 
@@ -88,6 +89,7 @@ estimate_DSCAP <- function(data,
         formula_CC = formula_CC,
         trial_var = trial_var,
         treatment_var = treatment_var,
+        target_trial = target_trial,
         estimate_weights = estimate_weights,
         CC_weight_var = CC_weight_var
       ) %>%
@@ -102,6 +104,10 @@ estimate_DSCAP <- function(data,
       bind_rows(naive_trt_effect_target_df)
   }
   
+  
+  if (any(is.na(trt_effects_df$VE_est)) | any(is.na(trt_effects_df$mean_diff_S_est))) {
+    browser()
+  }
   # Estimate the association measures given the trial-level treatment effect
   # estimates.
   association_measures_df = association_measures(trt_effects_df)
@@ -238,6 +244,9 @@ association_measures <- function(trt_effects_df) {
                   method = "spearman")
   
   # Linear regression slope
+  if (any(is.na(trt_effects_df$VE_est)) | any(is.na(trt_effects_df$mean_diff_S_est))) {
+    browser()
+  }
   beta_est = coef(lm(VE_est ~ mean_diff_S_est, data = trt_effects_df))[2]
   
   association_measures_df = tibble(

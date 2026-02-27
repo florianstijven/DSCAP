@@ -17,23 +17,13 @@ args = commandArgs(trailingOnly = TRUE)
 # Number of MC IPD replicates (per trial) to approximate true values.
 n_MC <- as.numeric(args[1])
 
-# Source parameter values
+# Source parameter values that also includes a tibble containing all scenarios
+# studied.
 source("R/simulations/parameter_values.R")
 
-# Tibble that contains all scenarios studied.
-dgm_param_tbl <- tibble(
-  setting = c("1", "2", "3"),
-  # Number of trials in each simulation.
-  n_trials = 5,
-  # Number of subjects in each trial.
-  n_t = n_MC,
-  # Case-cohort sampling indicator. If TRUE, the data are generated according to a
-  # case-cohort sampling design. If FALSE, the data are generated according to a
-  # full-cohort design.
-  CC_sampling = c(FALSE, FALSE, FALSE)
-) %>%
-  # joint with parameter values for each setting.
-  left_join(param_tbl, by = "setting")
+# Change number of subjects per trials (which is not relevant for approximating
+# the true values) to a large number `n_MC`.
+dgm_param_tbl$n_t = n_MC
 
 # Define formulas for the outcome models for (i) clinical outcome Y and (ii)
 # surrogate outcome S. The same linear predictors are used for both models. In
@@ -113,9 +103,9 @@ simulate_and_analyze <- function(n_trials,
 # estimates and association measures for each data set.
 data_set_indicator = 1
 
-simulations_results_tbl <- expand_grid(data_set_indicator, dgm_param_tbl)
+true_values_tbl <- expand_grid(data_set_indicator, dgm_param_tbl)
 
-simulations_results_tbl$inferences_tbl = future_pmap(
+true_values_tbl$inferences_tbl = future_pmap(
   .l = list(
     n_trials = simulations_results_tbl$n_trials,
     n_t = simulations_results_tbl$n_t,
@@ -140,7 +130,7 @@ simulations_results_tbl$inferences_tbl = future_pmap(
 # Remove redundant information and convert to a long format where each row
 # contains one estimate for a given parameter. Hence, the estimates and
 # inferences for a single simulated data set span many rows.
-simulations_results_tbl = simulations_results_tbl %>%
+true_values_tbl = true_values_tbl %>%
   select(-theta, -gamma, -data_set_indicator) %>%
   unnest(inferences_tbl)
 
@@ -148,8 +138,8 @@ simulations_results_tbl = simulations_results_tbl %>%
 
 # Save the results in an RDS file.
 saveRDS(
-  simulations_results_tbl,
-  "results/simulations/raw-results/simulations_true_values_tbl.rds"
+  true_values_tbl,
+  "results/simulations/raw-results/true_values_tbl.rds"
 )
 
 print(Sys.time() - t1)

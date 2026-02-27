@@ -40,26 +40,28 @@ generate_simulated_data <- function(
   sample_df$vax <- rbinom(N, 1, 0.5)
   sample_df$A   <- ifelse(sample_df$vax == 1, sample_df$trial, 0)
   
-  df$Y <- NA_real_
-  df$S <- NA_real_
+  sample_df$Y <- -1
+  sample_df$S <- -1
   
   # ----------------------------
-  # Generate potential outcomes
-  # Treatments are 0,1,...,n_trials
+  # Generate potential outcomes Treatments are 0,1,...,n_trials
   # ----------------------------
+  # Make deisgn matrix based on formula_Y and formula_S. 
+  model_matrix_Y = model.matrix(formula_Y, data = sample_df)
+  model_matrix_S = model.matrix(formula_S, data = sample_df)
   for (a in 0:n_trials) {
     
-    idx <- which(A == a)
+    idx <- which(sample_df$A == a)
     if (length(idx) == 0) next
     
     theta_a <- theta[a + 1, ]
     gamma_a <- gamma[a + 1, ]
+
+    mu_Y <- inv_logit(model_matrix_Y[idx, ] %*% theta_a)
+    mu_S <- model_matrix_S[idx, ] %*% gamma_a
     
-    mu_Y <- inv_logit(X[idx, ] %*% theta_a)
-    mu_S <- X[idx, ] %*% gamma_a
-    
-    df$Y[idx] <- rbinom(length(idx), 1, mu_Y)
-    df$S[idx] <- rnorm(length(idx), mu_S, ifelse(a == 0, 0.28, 0.64))
+    sample_df$Y[idx] <- rbinom(length(idx), 1, mu_Y)
+    sample_df$S[idx] <- rnorm(length(idx), mu_S, ifelse(a == 0, 0.28, 0.64))
   }
   
   # ==================================================
@@ -75,34 +77,34 @@ generate_simulated_data <- function(
       stop("ZOPT must be 1 or 2 when CC_sampling=TRUE")
     }
     
-    df$Z <- Z
+    sample_df$Z <- Z
     
     # Trial-specific sampling probability
     D1pr <- rnorm(n_trials, mean = 0.1, sd = 0.03)
-    df$D1pr <- D1pr[df$trial]
+    sample_df$D1pr <- D1pr[sample_df$trial]
     
-    df$D1 <- 0
-    df$D2 <- 0
+    sample_df$D1 <- 0
+    sample_df$D2 <- 0
     
     for (i in seq_len(n_trials)) {
       
-      idx_trial <- which(df$trial == i)
+      idx_trial <- which(sample_df$trial == i)
       
       # Stage 1 sample
       n1 <- ceiling(length(idx_trial) * D1pr[i])
       s1 <- sample(idx_trial, n1)
-      df$D1[s1] <- 1
+      sample_df$D1[s1] <- 1
       
       # Stage 2 sample (cases)
-      idx_cases <- idx_trial[df$Y[idx_trial] == 1]
+      idx_cases <- idx_trial[sample_df$Y[idx_trial] == 1]
       if (length(idx_cases) > 0) {
         n2 <- ceiling(length(idx_cases) * 0.75)
         s2 <- sample(idx_cases, n2)
-        df$D2[s2] <- 1
+        sample_df$D2[s2] <- 1
       }
     }
     
-    df$Delta <- as.integer(df$D1 == 1 | df$D2 == 1)
+    sample_df$Delta <- as.integer(sample_df$D1 == 1 | sample_df$D2 == 1)
   }
   
   # ----------------------------
@@ -111,7 +113,7 @@ generate_simulated_data <- function(
   xvy  <- unlist(strsplit(as.character(formula_Y)[3], " "))
   cols <- c("trial", "A", "Y", "S", xvy, "Z", "Delta", "vax")
   
-  dplyr::select(df, any_of(cols))
+  dplyr::select(sample_df, any_of(cols))
 }
 
 sample_covariates_trials <- function(zeta, N, target_trial) {

@@ -23,23 +23,9 @@ n_boot <- as.numeric(args[2])
 # Number of replications for permutation test for conditional independence.r
 n_perm <- as.numeric(args[3])
 
-# Source parameter values
+# Source parameter values that also includes a tibble containing all scenarios
+# studied.
 source("R/simulations/parameter_values.R")
-
-# Tibble that contains all scenarios studied.
-dgm_param_tbl <- tibble(
-  setting = c("1", "2", "3"),
-  # Number of trials in each simulation.
-  n_trials = 5,
-  # Number of subjects in each trial.
-  n_t = 1000,
-  # Case-cohort sampling indicator. If TRUE, the data are generated according to a
-  # case-cohort sampling design. If FALSE, the data are generated according to a
-  # full-cohort design.
-  CC_sampling = c(FALSE, FALSE, FALSE)
-) %>%
-  # joint with parameter values for each setting.
-  left_join(param_tbl, by = "setting")
 
 # Define formulas for the outcome models for (i) clinical outcome Y and (ii)
 # surrogate outcome S. The same linear predictors are used for both models. In
@@ -62,6 +48,7 @@ formula_CC = as.formula(Delta ~ CC_stratum * trial * as.factor(A))
 source("R/helper-functions/DSCAP-estimators.R")
 source("R/helper-functions/treatment-effect-estimators.R")
 source("R/simulations/generate_simulated_data.R")
+source("R/helper-functions/permutation-LRT.R")
 
 ## Simulation Function --------------------------------------------------
 
@@ -145,7 +132,8 @@ analyze <- function(data,
     formula_Y = formula_Y,
     treatment_var = "A",
     trial_var = "trial",
-    n_perm = n_perm
+    n_perm = n_perm,
+    estimate_weights = estimate_weights
   )
   
   # Add p-value to inferences table.
@@ -248,7 +236,6 @@ simulations_results_tbl$inferences_tbl = future_pmap(
 simulations_results_tbl = simulations_results_tbl %>%
   select(-theta, -gamma, -zeta) %>%
   unnest(inferences_tbl)
-
 
 
 # Save Results -------------------------------------------------------------
