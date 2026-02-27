@@ -6,7 +6,9 @@
 #SBATCH --mail-type=END,FAIL,REQUEUE,STAGE_OUT
 #SBATCH -A lp_doctoralresearch
 
+module load cluster/wice/batch
 module load R/4.4.2-gfbf-2024a
+module load R-bundle-CRAN/2024.11-foss-2024a
 
 export OMP_NUM_THREADS=1
 
