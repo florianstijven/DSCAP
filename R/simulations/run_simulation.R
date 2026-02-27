@@ -40,7 +40,16 @@ formula_T = as.formula(trial ~ X1 + X2)
 # Formula for case-cohort sampling model (i.e., model for probability of being
 # sampled in the case-cohort sampling design given covariates X, treatment A,
 # outcome Y, and trial).
-formula_CC = as.formula(Delta ~ CC_stratum * trial * as.factor(A))
+formula_CC = as.formula(Delta ~ X1 * trial * as.factor(A) * as.factor(Y))
+
+# If CC sampling is required for the simulations, we set the formula_CC in the
+# corresponding row of the tibble containing the DGP parameters. Otherwise, this
+# element is null.
+dgm_param_tbl$formula_CC <- ifelse(
+  dgm_param_tbl$CC_sampling,
+  list(formula_CC),
+  list(NULL)
+)
 
 # Helper Functions --------------------------------------------------------
 
@@ -57,9 +66,9 @@ analyze <- function(data,
                     formula_S,
                     formula_Y,
                     formula_T,
+                    formula_CC,
                     target_trial,
                     estimate_weights = FALSE,
-                    CC_sampling = FALSE,
                     alpha = 0.05,
                     B) {
   # Analyze the simulated data using the naive, standardization, ipw, and doubly
@@ -70,6 +79,7 @@ analyze <- function(data,
     formula_S = formula_S,
     formula_Y = formula_Y,
     formula_T = formula_T,
+    formula_CC = formula_CC,
     target_trial = target_trial,
     estimate_weights = estimate_weights,
     trial_var = "trial",
@@ -83,6 +93,7 @@ analyze <- function(data,
     formula_S = formula_S,
     formula_Y = formula_Y,
     formula_T = formula_T,
+    formula_CC = formula_CC,
     target_trial = target_trial,
     estimate_weights = estimate_weights,
     trial_var = "trial",
@@ -96,6 +107,7 @@ analyze <- function(data,
     formula_S = formula_S,
     formula_Y = formula_Y,
     formula_T = formula_T,
+    formula_CC = formula_CC,
     target_trial = target_trial,
     estimate_weights = estimate_weights,
     trial_var = "trial",
@@ -109,6 +121,7 @@ analyze <- function(data,
     formula_S = formula_S,
     formula_Y = formula_Y,
     formula_T = formula_T,
+    formula_CC = formula_CC,
     target_trial = target_trial,
     estimate_weights = estimate_weights,
     trial_var = "trial",
@@ -127,9 +140,22 @@ analyze <- function(data,
   
   # Compute permutation p-value for testing the trial exchangeability assumption
   # for control treatment.
-  p_value_permutation <- permutation_LRT(
+  p_value_permutation_Y <- permutation_LRT(
     data = data,
-    formula_Y = formula_Y,
+    formula_O = formula_Y,
+    formula_CC = formula_CC,
+    family = binomial(),
+    treatment_var = "A",
+    trial_var = "trial",
+    n_perm = n_perm,
+    estimate_weights = estimate_weights
+  )
+  
+  p_value_permutation_S <- permutation_LRT(
+    data = data,
+    formula_O = formula_S,
+    formula_CC = formula_CC,
+    family = gaussian(),
     treatment_var = "A",
     trial_var = "trial",
     n_perm = n_perm,
@@ -140,8 +166,8 @@ analyze <- function(data,
   inferences_tbl = inferences_tbl %>%
     bind_rows(
       tibble(
-        measure = "permutation_LRT_p_value",
-        estimate = p_value_permutation,
+        measure = c("permutation_LRT_p_value_S", "permutation_LRT_p_value_Y"),
+        estimate = c(p_value_permutation_S, p_value_permutation_Y),
         type = NA,
         treatment = NA,
         CI_lower_bs = NA,
@@ -164,6 +190,7 @@ simulate_and_analyze <- function(n_trials,
                                  formula_S,
                                  formula_Y,
                                  formula_T,
+                                 formula_CC,
                                  target_trial,
                                  estimate_weights = FALSE,
                                  alpha = 0.05,
@@ -186,9 +213,9 @@ simulate_and_analyze <- function(n_trials,
     formula_S = formula_S,
     formula_Y = formula_Y,
     formula_T = formula_T,
+    formula_CC = formula_CC,
     target_trial = target_trial,
     estimate_weights = estimate_weights,
-    CC_sampling = CC_sampling,
     alpha = alpha,
     B = B
   )
@@ -213,7 +240,8 @@ simulations_results_tbl$inferences_tbl = future_pmap(
     gamma = simulations_results_tbl$gamma,
     theta = simulations_results_tbl$theta,
     zeta = simulations_results_tbl$zeta,
-    CC_sampling = simulations_results_tbl$CC_sampling
+    CC_sampling = simulations_results_tbl$CC_sampling,
+    formula_CC = simulations_results_tbl$formula_CC
   ),
   .f = simulate_and_analyze,
   formula_S = formula_S,

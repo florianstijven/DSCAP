@@ -86,13 +86,17 @@ param_tbl <- tibble(
 dgm_param_tbl <- tibble(
   setting = c("1", "2", "3"),
   # Number of trials in each simulation.
-  n_trials = 5,
-  # Number of subjects in each trial.
-  n_t = 1000,
-  # Case-cohort sampling indicator. If TRUE, the data are generated according to a
-  # case-cohort sampling design. If FALSE, the data are generated according to a
-  # full-cohort design.
-  CC_sampling = c(FALSE, FALSE, FALSE)
+  n_trials = 5
 ) %>%
+  expand_grid(tibble(
+    # Case-cohort sampling indicator. If TRUE, the data are generated according to a
+    # case-cohort sampling design. If FALSE, the data are generated according to a
+    # full-cohort design.
+    CC_sampling = c(FALSE, TRUE)
+  )) %>%
+  expand_grid(tibble(
+    # Number of subjects in each trial.
+    n_t = c(2000, 5000)
+  )) %>%
   # joint with parameter values for each setting.
   left_join(param_tbl, by = "setting")
