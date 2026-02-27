@@ -67,44 +67,13 @@ generate_simulated_data <- function(
   # ==================================================
   # CASE–COHORT DESIGN
   # ==================================================
-  if (isTRUE(CC_sampling)) {
-    
-    if (ZOPT == 1) {
-      Z <- interaction(X1, X2 >= 65, drop = TRUE)
-    } else if (ZOPT == 2) {
-      Z <- factor(X1)
-    } else {
-      stop("ZOPT must be 1 or 2 when CC_sampling=TRUE")
-    }
-    
-    sample_df$Z <- Z
-    
-    # Trial-specific sampling probability
-    D1pr <- rnorm(n_trials, mean = 0.1, sd = 0.03)
-    sample_df$D1pr <- D1pr[sample_df$trial]
-    
-    sample_df$D1 <- 0
-    sample_df$D2 <- 0
-    
-    for (i in seq_len(n_trials)) {
-      
-      idx_trial <- which(sample_df$trial == i)
-      
-      # Stage 1 sample
-      n1 <- ceiling(length(idx_trial) * D1pr[i])
-      s1 <- sample(idx_trial, n1)
-      sample_df$D1[s1] <- 1
-      
-      # Stage 2 sample (cases)
-      idx_cases <- idx_trial[sample_df$Y[idx_trial] == 1]
-      if (length(idx_cases) > 0) {
-        n2 <- ceiling(length(idx_cases) * 0.75)
-        s2 <- sample(idx_cases, n2)
-        sample_df$D2[s2] <- 1
-      }
-    }
-    
-    sample_df$Delta <- as.integer(sample_df$D1 == 1 | sample_df$D2 == 1)
+  if (CC_sampling) {
+    # For subjects with Y = 1, the sampling probability is 0.75. For subjects
+    # with Y = 0, the sampling probability depends on X1: 0.10 if X1 = 0 and
+    # 0.15 if X1 = 1.
+    sample_df$Delta <- ifelse(sample_df$Y == 1,
+                              rbinom(N, 1, 0.75),
+                              ifelse(sample_df$X1 == 0, rbinom(N, 1, 0.10), rbinom(N, 1, 0.15)))
   }
   
   # ----------------------------
