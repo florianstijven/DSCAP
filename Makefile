@@ -60,4 +60,4 @@ results/simulations/raw-results/simulations_results_tbl.rds: R/simulations/run_s
 	Rscript R/simulations/run_simulation.R $(N_MC) $(B) $(B)
 	
 results/simulations/raw-results/true_values_tbl.rds: $(analysishelpers) $(simulationhelpers)
-	Rscript results/simulations/raw-results/true_values_tbl.rds $(n_MC)
+	Rscript R/simulations/compute_truevalues.R $(n_MC)
