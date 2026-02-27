@@ -138,7 +138,7 @@ generate_simulated_data <- function(
   # ----------------------------
   # Final selection
   # ----------------------------
-  xvy  <- unlist(strsplit(as.character(Ymod)[3], " "))
+  xvy  <- unlist(strsplit(as.character(formula_Y)[3], " "))
   cols <- c("trial", "A", "Y", "S", xvy, "Z", "Delta", "vax")
   
   dplyr::select(df, any_of(cols))

@@ -23,6 +23,9 @@ n_boot <- as.numeric(args[2])
 # Number of replications for permutation test for conditional independence.r
 n_perm <- as.numeric(args[3])
 
+# Source parameter values
+source("R/simulations/parameter_values.R")
+
 # Tibble that contains all scenarios studied.
 dgm_param_tbl <- tibble(
   setting = c("1", "2", "3"),
@@ -58,9 +61,7 @@ formula_CC = as.formula(Delta ~ CC_stratum * trial * as.factor(A))
 # Source helper functions.
 source("R/helper-functions/DSCAP-estimators.R")
 source("R/helper-functions/treatment-effect-estimators.R")
-
-# Source parameter values
-source("R/simulations/parameter_values.R")
+source("R/simulations/generate_simulated_data.R")
 
 ## Simulation Function --------------------------------------------------
 
