@@ -2,6 +2,8 @@
 B = 20
 # Number of MC replications for the simulations 
 N_MC = 10
+# Number of MC IPD replicates (per trial) to approximate true values.
+n_MC <- 1e5
 # Rscripts that contain helper functions.
 analysishelpers = R/helper-functions/DSCAP-estimators.R R/helper-functions/permutation-LRT.R R/helper-functions/treatment-effect-estimators.R
 simulationhelpers = R/simulations/generate_simulated_data.R R/simulations/parameter_values.R 
@@ -16,7 +18,8 @@ formula = risk_score+age.geq.65+riskxage+BMI_underweight_normal
 
 all: application simulation
 
-simulation: results/simulations/raw-results/simulations_results_tbl.rds
+simulation: results/simulations/raw-results/simulations_results_tbl.rds \
+	results/simulations/plots/true_values_tbl.rds
 
 application: R/neut_AZ_full_M1_estwts.Rout R/spike_AZ_full_M1_estwts.Rout \
 	R/neut_AZ_truncated_M2_estwts.Rout R/spike_AZ_truncated_M2_estwts.Rout \
@@ -55,3 +58,6 @@ R/plots_tables.Rout: R/neut_AZ_full_M1_estwts.Rout R/spike_AZ_full_M1_estwts.Rou
 	
 results/simulations/raw-results/simulations_results_tbl.rds: R/simulations/run_simulation.R $(analysishelpers) $(simulationhelpers)
 	Rscript R/simulations/run_simulation.R $(N_MC) $(B) $(B)
+	
+results/simulations/raw-results/true_values_tbl.rds: $(analysishelpers) $(simulationhelpers)
+	Rscript results/simulations/raw-results/true_values_tbl.rds $(n_MC)
