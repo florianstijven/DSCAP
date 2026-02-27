@@ -82,6 +82,11 @@ simulate_and_analyze <- function(n_trials,
     CC_sampling = CC_sampling, 
     target_trial = target_trial
   )
+  
+  # Compute proportion of events in each trial-treatment arm.
+  prop_events_tbl <- simulated_data %>%
+    group_by(trial, A) %>%
+    summarise(prop_events = mean(Y))
 
   # Analyze data.
   inferences_tbl <- estimate_DSCAP(
@@ -98,6 +103,14 @@ simulate_and_analyze <- function(n_trials,
     CC_weight_var = NULL
   ) %>%
     do.call(what = estimates_table_join)
+  
+  # Combines estimates with event proportions.
+  inferences_tbl <- bind_rows(
+    inferences_tbl,
+    prop_events_tbl %>%
+      rename(treatment = A, estimate = prop_events) %>%
+      mutate(measure = "prop_events", type = NA)
+  )
   
   return(inferences_tbl)
 }

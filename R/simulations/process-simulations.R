@@ -66,12 +66,13 @@ true_effects_plot = true_values_tbl %>%
   pivot_wider(names_from = "measure", values_from = "estimand") %>%
   ggplot(aes(
     x = mean_diff_S_est,
-    y = VE_est
+    y = VE_est,
+    colour = as.factor(treatment)
   )) +
   geom_point() +
   scale_y_continuous(name = "VE") +
   scale_x_continuous(name = "Mean Difference in S") +
-  facet_grid(target_trial~setting) +  
+  facet_grid(target_trial~setting, scales = "free") +  
   theme(legend.position = "bottom", legend.box = "vertical", legend.spacing.y = unit(0, "cm"))
 
 ggsave(
@@ -219,6 +220,16 @@ sink(file = paste0(tables_dir, "true-trial-level-effects.txt"))
 true_values_tbl %>%
   filter(measure %in% c("VE_est", "mean_diff_S_est")) %>%
   pivot_wider(names_from = "measure", values_from = "estimand") %>%
+  print(n = 500)
+sink()
+
+# Print the event proportions.
+sink(file = paste0(tables_dir, "event-proportions.txt"))
+true_values_tbl %>%
+  filter(measure == "prop_events", target_trial == "naive") %>%
+  select(setting, treatment, trial, estimand) %>%
+  mutate(treatment = ifelse(treatment == 0, "Control (0)", "Active (1)")) %>%
+  pivot_wider(names_from = "treatment", values_from = "estimand") %>%
   print(n = 500)
 sink()
 
