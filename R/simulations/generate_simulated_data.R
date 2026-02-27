@@ -16,59 +16,29 @@ generate_simulated_data <- function(
     formula_S,
     gamma,
     theta,
+    zeta,
     CC_sampling = FALSE,
-    ZOPT = NULL
+    ZOPT = NULL,
+    target_trial = NULL
 ) {
   
   N <- n_trials * n_t
   
   inv_logit <- function(x) plogis(x)
   
-  # ----------------------------
-  # Generate covariates
-  # ----------------------------
-  X1 <- rbinom(N, 1, 0.3)
-  X2 <- pmin(pmax(rnorm(N, 55, 22.3), 18), 85)
+  # Generate covariates and trial indicators. 
+  if (is.null(target_trial)) {
+    # Sample covariates and trial assignment according to the "default" DGP.
+     sample_df <- sample_covariates_trials(zeta = zeta, N = N, target_trial = NULL)
+  } else {
+    # Sample covariates from the target trial covariate distribution and sample the trial indicator
+    # from a uniform distribution on the trial indicators.
+    sample_df <- sample_covariates_trials(zeta = zeta, N = N, target_trial = target_trial)
+  }
   
-  X <- cbind(1, X1, X2)
-  
-  # ----------------------------
-  # Multinomial trial assignment
-  # ----------------------------
-  denom <- 1 +
-    exp(X %*% zeta1) +
-    exp(X %*% zeta2) +
-    exp(X %*% zeta3) +
-    exp(X %*% zeta4)
-  
-  probs <- cbind(
-    1 / denom,
-    exp(X %*% zeta4)     / denom,
-    exp(X %*% zeta3) / denom,
-    exp(X %*% zeta2)    / denom,
-    exp(X %*% zeta1)   / denom
-  )
-  
-  trial <- max.col(
-    t(apply(probs, 1, function(p) rmultinom(1, 1, p))),
-    ties.method = "first"
-  )
-  
-  # ----------------------------
-  # Treatment assignment
-  # ----------------------------
-  # Trial a now has treatments {0, a}
-  vax <- rbinom(N, 1, 0.5)
-  A   <- ifelse(vax == 1, trial, 0)
-  
-  df <- data.frame(
-    ID    = seq_len(N),
-    trial = trial,
-    X1    = X1,
-    X2    = X2,
-    vax   = vax,
-    A     = A
-  )
+  # Sample treatment indicators.
+  sample_df$vax <- rbinom(N, 1, 0.5)
+  sample_df$A   <- ifelse(sample_df$vax == 1, sample_df$trial, 0)
   
   df$Y <- NA_real_
   df$S <- NA_real_
@@ -142,4 +112,66 @@ generate_simulated_data <- function(
   cols <- c("trial", "A", "Y", "S", xvy, "Z", "Delta", "vax")
   
   dplyr::select(df, any_of(cols))
+}
+
+sample_covariates_trials <- function(zeta, N, target_trial) {
+  # If `target_trial` is NULL, sample covariates and trial assignment
+  # according to the "default" DGP.
+  if (is.null(target_trial)) {
+    df_list <- replicate(N, sample_row_covariates_trials(zeta), simplify = FALSE)
+  } else {
+    # If `target_trial` contains an integer, sample covariates from the target
+    # trial covariate distribution and sample the trial indicator from a uniform
+    # distribution on the trial indicators.
+    df_list <- replicate(N, sample_one_covariates_trials_target(zeta, target_trial), simplify = FALSE)
+  }
+  df <- do.call(rbind, df_list)
+  return(df)
+}
+
+# Function to sample covariates and trial assignment for one subject. 
+sample_row_covariates_trials <- function(zeta) {
+  # Sample covariates for one subject.
+  X1 <- rbinom(1, 1, 0.3)
+  X2 <- pmin(pmax(rnorm(1, 55, 22.3), 18), 85)
+  X <- c(1, X1, X2)
+
+  # Sample the trial indicator.
+  denom <- 1 +
+    exp(X %*% zeta[1, ]) +
+    exp(X %*% zeta[2, ]) +
+    exp(X %*% zeta[3, ]) +
+    exp(X %*% zeta[4, ])
+  
+  probs <- c(
+    1 / denom,
+    exp(X %*% zeta[4, ]) / denom,
+    exp(X %*% zeta[3, ]) / denom,
+    exp(X %*% zeta[2, ]) / denom,
+    exp(X %*% zeta[1, ]) / denom
+  )
+  
+  trial <- which.max(rmultinom(1, 1, probs))
+  
+  return(data.frame(X1 = X1, X2 = X2, trial = trial))
+})
+
+# Sample covariates from the target trial covariate distribution and sample the
+# trial indicator from a uniform distribution on the trial indicators.
+sample_one_covariates_trials_target(zeta, target_trial) {
+  while (TRUE) {
+    # We can sample covariate from the target trial covariate distribution by
+    # sampling from the default DGP until the trial indicator is equal to the
+    # target trial. 
+    sample_df <- sample_one_covariates_trials(zeta)
+    if (sample_df$trial == target_trial) {
+      break
+    }
+  }
+  # Number of trial.
+  n_trials <- length(zeta) + 1
+  # Sample trial indicator from a uniform distribution on the trial indicators.
+  sample_df$trial <- sample(1:n_trials, 1)
+  
+  return(sample_df)
 }
