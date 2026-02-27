@@ -6,7 +6,7 @@
 #SBATCH --mail-type=END,FAIL,REQUEUE,STAGE_OUT
 #SBATCH -A lp_doctoralresearch
 
-ml fhR/4.4.0-foss-2023b
+module load R/4.4.2-gfbf-2024a
 
 export OMP_NUM_THREADS=1
 
