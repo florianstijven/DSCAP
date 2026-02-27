@@ -21,123 +21,18 @@ true_values_tbl <- readRDS(
 
 # Compute summaries from the simulation results
 ma_sim_summary = simulations_results_tbl %>%
-  group_by(
-    surrogate_index_estimator,
-    SI_violation,
-    estimator_adjustment,
-    sandwich_adjustment,
-    CI_type,
-    setting,
-    scenario,
-    N,
-    n, 
-    nearest_PD,
-    `PD correction`
-  ) %>%
+  group_by(setting, , n_trials, n_t, CC_sampling, measure, type, treatment) %>%
   summarise(
-    coverage = mean((rho_true >= rho_ci_lower) &
-                      (rho_true <= rho_ci_upper), na.rm = TRUE),
-    mean_bias = mean(rho_est - rho_true, na.rm = TRUE),
-    median_bias = median(rho_est - rho_true, na.rm = TRUE),
-    emp_SD = sqrt(mean((rho_est - rho_true)^2, na.rm = TRUE)),
-    mean_SE = mean(rho_se, na.rm = TRUE),
-    MSE = mean((rho_true - rho_est) ^ 2, na.rm = TRUE),
-    power_0.75 = mean(rho_ci_lower >= 0.75)
+    coverage = mean((estimand >= CI_lower_bs) &
+                      (estimand <= CI_upper_bs), na.rm = TRUE),
+    mean_bias = mean(estimate - estimand, na.rm = TRUE),
+    median_bias = median(estimate - estimand, na.rm = TRUE),
+    emp_SD = sqrt(mean((estimate - estimand)^2, na.rm = TRUE)),
+    mean_SE = mean(SE_bs, na.rm = TRUE),
+    MSE = mean((estimand - estimate)^2, na.rm = TRUE)
   )
 
 # Summary of the Simulation Results ---------------------------------------
-
-## Distribution of the estimands ------------------------------------------
-estimand_plot_1 = ma_sim_results %>%
-  filter(
-    surrogate_index_estimator != "surrogate",
-    setting == "small N, large n",
-    CI_type == "sandwich",
-    scenario == "proof-of-concept",
-    surrogate_index_estimator != "Surrogate"
-  ) %>%
-  mutate(surrogate_index_estimator = fct_drop(surrogate_index_estimator, only = c("surrogate"))) %>%
-  ggplot(aes(x = rho_true, color = surrogate_index_estimator)) +
-  geom_density(show.legend = TRUE) +
-  geom_vline(
-    aes(xintercept = rho_true),
-    data = ma_sim_results %>%
-      filter(
-        surrogate_index_estimator == "Surrogate",
-        setting == "small N, large n"
-      ) %>%
-      mutate(rho_true = abs(rho_true)) %>%
-      filter(scenario == "proof-of-concept") %>%
-      group_by(scenario, N, SI_violation) %>%
-      slice_head(n = 1) %>%
-      ungroup()
-  ) +
-  scale_x_continuous(lim = c(0.60, 1), name = expr(rho[trial]^{(g[N])}), n.breaks = 4) +
-  scale_color_discrete(name = "Surr. Index Estimator", drop = FALSE) +
-  facet_grid(SI_violation ~ N_chr, scales = "free")
-
-# estimand_plot_1
-# ggsave(
-#   filename = "distribution-estimands-proof-of-concept.pdf",
-#   path = figures_dir,
-#   height = double_height,
-#   width = double_width,
-#   dpi = res,
-#   device = "pdf",
-#   units = "cm"
-# )
-
-
-
-estimand_plot_2 = ma_sim_results %>%
-  filter(
-    surrogate_index_estimator != "surrogate",
-    setting == "small N, large n",
-    CI_type == "sandwich",
-    scenario == "vaccine"
-  ) %>%
-  ggplot(aes(x = rho_true, color = surrogate_index_estimator)) +
-  geom_density(show.legend = TRUE) +
-  geom_vline(
-    aes(xintercept = rho_true),
-    data = ma_sim_results %>%
-      filter(
-        surrogate_index_estimator == "Surrogate",
-        setting == "small N, large n"
-      ) %>%
-      mutate(rho_true = abs(rho_true)) %>%
-      filter(scenario == "vaccine") %>%
-      group_by(scenario, N, SI_violation) %>%
-      slice_head(n = 1) %>%
-      ungroup()
-  ) +
-  scale_x_continuous(lim = c(0.60, 1), name = expr(rho[trial]^{(g[N])}), n.breaks = 4) +
-  scale_color_discrete(name = "Surr. Index Estimator", drop = FALSE) +
-  facet_grid(SI_violation ~ N_chr, scales = "free")
-
-# estimand_plot_2
-# ggsave(
-#   filename = "distribution-estimands-vaccine.pdf",
-#   path = figures_dir,
-#   height = double_height,
-#   width = double_width,
-#   dpi = res,
-#   device = "pdf",
-#   units = "cm"
-# )
-
-ggarrange(estimand_plot_1, estimand_plot_2, common.legend = TRUE, legend = "bottom", labels = "auto", nrow = 2)
-
-ggsave(
-  filename = "distribution-estimands.pdf",
-  path = figures_dir,
-  height = double_height,
-  width = double_width,
-  dpi = res,
-  device = "pdf",
-  units = "cm"
-)
-
 
 ## Estimation Accuracies --------------------------------------------------
 

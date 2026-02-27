@@ -88,7 +88,8 @@ simulate_and_analyze <- function(n_trials,
     treatment_var = "A",
     target_trial = target_trial,
     estimate_weights = estimate_weights,
-    corrected_target_trial = FALSE
+    corrected_target_trial = FALSE,
+    CC_weight_var = NULL
   ) %>%
     do.call(what = estimates_table_join)
   

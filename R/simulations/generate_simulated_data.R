@@ -165,7 +165,7 @@ sample_one_covariates_trials_target <- function(zeta, target_trial) {
     # We can sample covariate from the target trial covariate distribution by
     # sampling from the default DGP until the trial indicator is equal to the
     # target trial. 
-    sample_df <- sample_one_covariates_trials(zeta)
+    sample_df <- sample_row_covariates_trials(zeta)
     if (sample_df$trial == target_trial) {
       break
     }
