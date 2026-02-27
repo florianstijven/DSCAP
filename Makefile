@@ -1,9 +1,9 @@
 # Number of bootstrap replications and replications for the permutation test.
-B = 50
+B = 500
 # Number of MC replications for the simulations 
-N_MC = 20
+N_MC = 100
 # Number of MC IPD replicates (per trial) to approximate true values.
-n_MC = 1e5
+n_MC = 1e6
 # Rscripts that contain helper functions.
 analysishelpers = R/helper-functions/DSCAP-estimators.R R/helper-functions/permutation-LRT.R R/helper-functions/treatment-effect-estimators.R
 simulationhelpers = R/simulations/generate_simulated_data.R R/simulations/parameter_values.R 
@@ -60,7 +60,7 @@ R/plots_tables.Rout: R/neut_AZ_full_M1_estwts.Rout R/spike_AZ_full_M1_estwts.Rou
 results/simulations/raw-results/simulations_results_tbl.rds: R/simulations/run_simulation.R $(analysishelpers) $(simulationhelpers)
 	Rscript R/simulations/run_simulation.R $(N_MC) $(B) $(B)
 	
-results/simulations/raw-results/true_values_tbl.rds: $(analysishelpers) $(simulationhelpers)
+results/simulations/raw-results/true_values_tbl.rds: R/simulations/compute_truevalues.R $(analysishelpers) $(simulationhelpers)
 	Rscript R/simulations/compute_truevalues.R $(n_MC)
 	
 R/simulations/process-simulations.Rout: results/simulations/raw-results/simulations_results_tbl.rds \
