@@ -76,7 +76,7 @@ simulate_and_analyze <- function(n_trials,
     CC_sampling = CC_sampling, 
     target_trial = 1
   )
-  
+
   # Analyze data.
   inferences_tbl <- estimate_DSCAP(
     data = simulated_data,

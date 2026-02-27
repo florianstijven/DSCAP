@@ -171,7 +171,7 @@ sample_one_covariates_trials_target <- function(zeta, target_trial) {
     }
   }
   # Number of trial.
-  n_trials <- length(zeta) + 1
+  n_trials <- nrow(zeta) + 1
   # Sample trial indicator from a uniform distribution on the trial indicators.
   sample_df$trial <- sample(1:n_trials, 1)
   
