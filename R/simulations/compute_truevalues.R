@@ -107,12 +107,12 @@ true_values_tbl <- expand_grid(data_set_indicator, dgm_param_tbl)
 
 true_values_tbl$inferences_tbl = future_pmap(
   .l = list(
-    n_trials = simulations_results_tbl$n_trials,
-    n_t = simulations_results_tbl$n_t,
-    gamma = simulations_results_tbl$gamma,
-    theta = simulations_results_tbl$theta,
-    zeta = simulations_results_tbl$zeta,
-    CC_sampling = simulations_results_tbl$CC_sampling
+    n_trials = true_values_tbl$n_trials,
+    n_t = true_values_tbl$n_t,
+    gamma = true_values_tbl$gamma,
+    theta = true_values_tbl$theta,
+    zeta = true_values_tbl$zeta,
+    CC_sampling = true_values_tbl$CC_sampling
   ),
   .f = simulate_and_analyze,
   formula_S = formula_S,
