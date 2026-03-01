@@ -5,6 +5,9 @@ t1 <- Sys.time()
 library(tidyverse)
 library(furrr) # for parallel computing
 
+# Set seed for reproducibility.
+set.seed(2)
+
 # Set up parallel computing
 if (parallelly::supportsMulticore()) {
   plan("multicore", workers = parallel::detectCores() - 1)

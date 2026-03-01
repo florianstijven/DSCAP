@@ -27,9 +27,6 @@ estimate_DSCAP <- function(data,
         estimate_weights = estimate_weights,
         CC_weight_var = CC_weight_var
       ) 
-    
-    trt_effects_df = means_df %>%
-      trt_effects(by_trial = FALSE)
   } else if (type == "ipw") {
     means_df = data %>%
       ipw_estimator(
@@ -41,9 +38,6 @@ estimate_DSCAP <- function(data,
         estimate_weights = estimate_weights,
         CC_weight_var = CC_weight_var
       ) 
-    
-    trt_effects_df = means_df %>%
-      trt_effects(by_trial = FALSE)
   } else if (type == "doubly robust") {
     means_df = data %>%
       DR_estimator(
@@ -57,9 +51,6 @@ estimate_DSCAP <- function(data,
         estimate_weights = estimate_weights,
         CC_weight_var = CC_weight_var
       ) 
-    
-    trt_effects_df = means_df %>%
-      trt_effects(by_trial = FALSE)
   } else if (type == "naive") {
     means_df = data %>%
       naive_estimator(
@@ -70,9 +61,6 @@ estimate_DSCAP <- function(data,
         estimate_weights = estimate_weights,
         CC_weight_var = CC_weight_var
       ) 
-    
-    trt_effects_df = means_df %>%
-      trt_effects(by_trial = TRUE)
   }
   
   # If any estimated proportions are zero, add 0.5 divided by that treatment
@@ -89,6 +77,16 @@ estimate_DSCAP <- function(data,
         mutate(mean_Y = ifelse(mean_Y == 0, 0.5 / n(), mean_Y)) %>%
         ungroup()
     }
+  }
+  
+  # Compute treatments effects. For the naive estimator, we compute the
+  # treatment effects separately for each trial. 
+  if (type == "naive") {
+    trt_effects_df = means_df %>%
+      trt_effects(by_trial = TRUE)
+  } else {
+    trt_effects_df = means_df %>%
+      trt_effects(by_trial = FALSE)
   }
   
   # If `corrected_target_trial` is TRUE, then we will use the treatment effect

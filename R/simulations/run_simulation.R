@@ -7,6 +7,9 @@ library(nnet) # multinom() function for multinomial logistic regression
 library(Hmisc)
 library(furrr) # for parallel computing
 
+# Set seed for reproducibility.
+set.seed(2)
+
 # Set up parallel computing
 if (parallelly::supportsMulticore()) {
   plan("multicore", workers = parallel::detectCores() - 1)
