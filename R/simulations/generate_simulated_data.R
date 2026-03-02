@@ -19,7 +19,7 @@ generate_simulated_data <- function(
     zeta,
     CC_sampling = FALSE,
     target_trial = NULL,
-    differerent_placebo_models = FALSE
+    different_placebo_model = FALSE
 ) {
   
   N <- n_trials * n_t
@@ -50,10 +50,10 @@ generate_simulated_data <- function(
   model_matrix_Y = model.matrix(formula_Y, data = sample_df)
   model_matrix_S = model.matrix(formula_S, data = sample_df)
   
-  # If `differerent_placebo_models` is TRUE, we use different models for the
+  # If `different_placebo_model` is TRUE, we use different models for the
   # placebo arm in each trial. Otherwise, we use the same model for the placebo
   # arm in each trial.
-  if (differerent_placebo_models) {
+  if (different_placebo_model) {
     # The first `n_trials` rows of theta and gamma contain the model parameters
     # for the control groups. The last `n_trials` rows contain the model
     # parameters for the active treatment groups.

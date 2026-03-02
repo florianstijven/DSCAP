@@ -484,7 +484,7 @@ compute_ipw_weights <- function(df, formula_T, target_trial) {
   # probability is 0.5 for control in all trials, and 0.5 for the active
   # treatment in the trial in which the active treatment is given and 0 for
   # other treatments.
-  
+
   # Create tibble in long format that contains for every subject (i.e., for X_i)
   # the treatment assignment probability P(A = a | X, T = t) for all a and t.
   df_weight_helper <- df %>%
@@ -536,30 +536,13 @@ compute_ipw_weights <- function(df, formula_T, target_trial) {
   # estimated as the proportion of subjects in the target trial.
   prob_target_trial = mean(df$target_population)
   
-  # Compute P(A = a | X) for each subject in the target trial for all a.
   df_weights <- df_weight_helper %>%
     group_by(subject_id, treatment_pred) %>%
     dplyr::summarize(
-      predicted_prob_treatment_X = sum(predicted_prob_treatment_XT * trial_participation_prob_X)
+      predicted_prob_treatment_X = sum(predicted_prob_treatment_XT * trial_participation_prob_X),
+      target_trial_participation_prob_X = trial_participation_prob_X[trial_pred == target_trial],
+      weight = target_trial_participation_prob_X / (predicted_prob_treatment_X * prob_target_trial)
     )
-  
-  # Compute P(T = t | X) for t equal to the target trial.
-  df_weights <- df_weights %>%
-    left_join(
-      df_weight_helper %>%
-        filter(trial_pred == target_trial) %>%
-        # There are multiple rows per subject, but the `trial_participation_prob_X`
-        # values are identical. We thus take the first value for each subject.
-        group_by(subject_id) %>%
-        slice_max(n = 1, order_by = treatment_pred) %>%
-        select(subject_id, trial_participation_prob_X),
-      by = "subject_id",
-      relationship = "many-to-one"
-    )
-  
-  # Compute the overall weight.
-  df_weights <- df_weights %>%
-    mutate(weight = trial_participation_prob_X / (predicted_prob_treatment_X * prob_target_trial))
   
   return(df_weights)
 }
