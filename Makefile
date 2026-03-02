@@ -1,7 +1,7 @@
 # Number of bootstrap replications and replications for the permutation test.
-B = 30
+B = 100
 # Number of MC replications for the simulations 
-N_MC = 5
+N_MC = 50
 # Number of MC IPD replicates (per trial) to approximate true values.
 n_MC = 1e5
 # Rscripts that contain helper functions.
