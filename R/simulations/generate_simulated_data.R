@@ -124,7 +124,9 @@ sample_covariates_trials <- function(zeta, N, target_trial) {
     # distribution on the trial indicators.
     df_list <- replicate(N, sample_one_covariates_trials_target(zeta, target_trial), simplify = FALSE)
   }
-  df <- do.call(rbind, df_list)
+  df <- do.call(rbind, df_list) %>%
+    as_tibble()
+  colnames(df) <- c("X1", "X2", "trial")
   return(df)
 }
 
@@ -152,25 +154,24 @@ sample_row_covariates_trials <- function(zeta) {
   
   trial <- which.max(rmultinom(1, 1, probs))
   
-  return(data.frame(X1 = X1, X2 = X2, trial = trial))
+  return(c(X1, X2, trial))
+  # return(data.frame(X1 = X1, X2 = X2, trial = trial))
 }
 
 # Sample covariates from the target trial covariate distribution and sample the
 # trial indicator from a uniform distribution on the trial indicators.
 sample_one_covariates_trials_target <- function(zeta, target_trial) {
-  while (TRUE) {
+  sample_vec <- sample_row_covariates_trials(zeta)
+  while (sample_vec[3] != target_trial) {
     # We can sample covariate from the target trial covariate distribution by
     # sampling from the default DGP until the trial indicator is equal to the
     # target trial. 
-    sample_df <- sample_row_covariates_trials(zeta)
-    if (sample_df$trial == target_trial) {
-      break
-    }
+    sample_vec <- sample_row_covariates_trials(zeta)
   }
   # Number of trial.
   n_trials <- nrow(zeta) + 1
   # Sample trial indicator from a uniform distribution on the trial indicators.
-  sample_df$trial <- sample(1:n_trials, 1)
+  sample_vec[3] <- sample(1:n_trials, 1)
   
-  return(sample_df)
+  return(sample_vec)
 }
