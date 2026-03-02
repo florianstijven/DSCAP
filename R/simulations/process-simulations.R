@@ -20,18 +20,13 @@ true_values_tbl <- readRDS(
   select(-type) %>%
   rename(estimand = estimate)
 
-# Join the simulations results wit the estimands.
+# Join the simulations results with the estimands.
 simulations_results_tbl <- simulations_results_tbl %>%
   left_join(true_values_tbl %>%
               filter(target_trial == "standardized") %>%
               select(-target_trial),
             by = c("setting", "n_trials", "measure", "treatment"),
             relationship = "many-to-one")
-
-true_values_tbl %>%
-  filter(target_trial == "standardized") %>%
-  select(-target_trial) %>%
-  group_by(setting, n_trials, measure, treatment)
 
 
 # Compute summaries from the simulation results
@@ -49,8 +44,8 @@ simulations_summary_tbl = simulations_results_tbl %>%
   )
 
 error_rates_permutation_tbl = simulations_results_tbl %>%
-  filter(measure == "permutation_LRT_p_value") %>%
-  group_by(setting, n_trials, n_t, CC_sampling) %>%
+  filter(measure %in% c("permutation_LRT_p_value_S", "permutation_LRT_p_value_Y")) %>%
+  group_by(setting, n_trials, n_t, CC_sampling, measure) %>%
   summarise(
     type_I_error_rate = mean(estimate < 0.05, na.rm = TRUE)
   )

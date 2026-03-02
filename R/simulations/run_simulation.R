@@ -247,13 +247,13 @@ simulations_results_tbl <- expand_grid(data_set_indicator, dgm_param_tbl)
 
 simulations_results_tbl$inferences_tbl = future_pmap(
   .l = list(
-    n_trials = simulations_results_tbl$n_trials[1],
-    n_t = simulations_results_tbl$n_t[1],
-    gamma = simulations_results_tbl$gamma[1],
-    theta = simulations_results_tbl$theta[1],
-    zeta = simulations_results_tbl$zeta[1],
-    CC_sampling = simulations_results_tbl$CC_sampling[1],
-    formula_CC = simulations_results_tbl$formula_CC[1]
+    n_trials = simulations_results_tbl$n_trials,
+    n_t = simulations_results_tbl$n_t,
+    gamma = simulations_results_tbl$gamma,
+    theta = simulations_results_tbl$theta,
+    zeta = simulations_results_tbl$zeta,
+    CC_sampling = simulations_results_tbl$CC_sampling,
+    formula_CC = simulations_results_tbl$formula_CC
   ),
   .f = simulate_and_analyze,
   formula_S = formula_S,
