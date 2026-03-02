@@ -18,7 +18,8 @@ generate_simulated_data <- function(
     theta,
     zeta,
     CC_sampling = FALSE,
-    target_trial = NULL
+    target_trial = NULL,
+    differerent_placebo_models = FALSE
 ) {
   
   N <- n_trials * n_t
@@ -48,20 +49,48 @@ generate_simulated_data <- function(
   # Make deisgn matrix based on formula_Y and formula_S. 
   model_matrix_Y = model.matrix(formula_Y, data = sample_df)
   model_matrix_S = model.matrix(formula_S, data = sample_df)
-  for (a in 0:n_trials) {
-    
-    idx <- which(sample_df$A == a)
-    if (length(idx) == 0) next
-    
-    theta_a <- theta[a + 1, ]
-    gamma_a <- gamma[a + 1, ]
-
-    mu_Y <- inv_logit(model_matrix_Y[idx, ] %*% theta_a)
-    mu_S <- model_matrix_S[idx, ] %*% gamma_a
-    
-    sample_df$Y[idx] <- rbinom(length(idx), 1, mu_Y)
-    sample_df$S[idx] <- rnorm(length(idx), mu_S, ifelse(a == 0, 0.28, 0.64))
+  
+  # If `differerent_placebo_models` is TRUE, we use different models for the
+  # placebo arm in each trial. Otherwise, we use the same model for the placebo
+  # arm in each trial.
+  if (differerent_placebo_models) {
+    # The first `n_trials` rows of theta and gamma contain the model parameters
+    # for the control groups. The last `n_trials` rows contain the model
+    # parameters for the active treatment groups.
+    for (t in 1:n_trials) {
+      for (a in c(0, t)) {
+        idx <- which(sample_df$A == a, sample_df$trial == t)
+        
+        param_row <- ifelse(a == 0, t, t + n_trials)
+        
+        theta_a <- theta[param_row, ]
+        gamma_a <- gamma[param_row, ]
+        
+        mu_Y <- inv_logit(model_matrix_Y[idx, ] %*% theta_a)
+        mu_S <- model_matrix_S[idx, ] %*% gamma_a
+        
+        sample_df$Y[idx] <- rbinom(length(idx), 1, mu_Y)
+        sample_df$S[idx] <- rnorm(length(idx), mu_S, ifelse(a == 0, 0.28, 0.64))
+      }
+    }
+  } else {
+    # The first row of theta and gamma contain the model parameters for the
+    # control groups. The other `n_trials` rows contain the model parameters for
+    # the active treatment groups.
+    for (a in 0:n_trials) {
+      idx <- which(sample_df$A == a)
+      
+      theta_a <- theta[a + 1, ]
+      gamma_a <- gamma[a + 1, ]
+      
+      mu_Y <- inv_logit(model_matrix_Y[idx, ] %*% theta_a)
+      mu_S <- model_matrix_S[idx, ] %*% gamma_a
+      
+      sample_df$Y[idx] <- rbinom(length(idx), 1, mu_Y)
+      sample_df$S[idx] <- rnorm(length(idx), mu_S, ifelse(a == 0, 0.28, 0.64))
+    }
   }
+ 
   
   # ==================================================
   # CASE–COHORT DESIGN
