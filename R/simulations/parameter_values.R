@@ -104,7 +104,7 @@ dgm_param_tbl <- tibble(
   )) %>%
   expand_grid(tibble(
     # Number of subjects in each trial.
-    n_t = c(2000, 5000)
+    n_t = c(3000, 8000)
   )) %>%
   # joint with parameter values for each setting.
   left_join(param_tbl, by = "setting")

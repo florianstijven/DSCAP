@@ -1,1 +1,7 @@
-Use separate functions for standarization, IPW, and doubly robust estimators
+do medium-scale sim to check results
+
+sims with violated exch assumption
+
+do large sims
+
+permutation test is invalid
