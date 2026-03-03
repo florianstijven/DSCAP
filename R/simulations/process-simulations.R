@@ -91,9 +91,10 @@ mean_bias = simulations_summary_tbl %>%
   ggplot(aes(
     x = n_t,
     y = mean_bias,
-    color = type
+    color = type,
+    shape = CC_sampling
   )) +
-  geom_point(position = position_dodge(width = 0.1)) +
+  geom_point(position = position_dodge(width = 0)) +
   geom_abline(intercept = 0, slope = 0) +
   scale_y_continuous(name = "Mean Bias") +
   scale_color_discrete(name = "Case Cohort Design") +
@@ -116,7 +117,8 @@ median_bias = simulations_summary_tbl %>%
   ggplot(aes(
     x = n_t,
     y = median_bias,
-    color = type
+    color = type,
+    shape = CC_sampling
   )) +
   geom_point(position = position_dodge(width = 0.1)) +
   geom_abline(intercept = 0, slope = 0) +
@@ -143,7 +145,8 @@ mse_plot = simulations_summary_tbl %>%
   ggplot(aes(
     x = n_t,
     y = MSE,
-    color = type
+    color = type,
+    shape = CC_sampling
   )) +
   geom_point(position = position_dodge(width = 0.1)) +
   scale_y_continuous(name = "MSE", transform = "log10") +
@@ -173,10 +176,10 @@ coverage_bs = simulations_summary_tbl %>%
   ggplot(aes(
     x = n_t,
     y = coverage,
-    color = type
+    color = type,
+    shape = CC_sampling
   )) +
   geom_point(position = position_dodge(width = 0.1)) +
-  geom_line() +
   geom_abline(intercept = 0.95, slope = 0) +
   scale_y_continuous(name = "Coverage", limits = coverage_limits) +
   scale_color_discrete(name = "Case Cohort Design") +
@@ -207,7 +210,8 @@ sink()
 
 # Print the error rates for the permutation LRT. 
 sink(file = paste0(tables_dir, "LRT-results.txt"))
-error_rates_permutation_tbl
+error_rates_permutation_tbl %>%
+  print(n = 500)
 sink()
 
 # Print the true trial-level standardized effects.
