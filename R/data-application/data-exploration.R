@@ -3,8 +3,8 @@
 ## Setup ----------------------------------------------------------------------------
 
 # Specify options for saving the plots to files
-figures_dir = "results/figures/"
-tables_dir = "results/tables/"
+figures_dir = "results/data-application/figures/"
+tables_dir = "results/data-application/tables/"
 
 # Load required packages. 
 library(tidyverse)

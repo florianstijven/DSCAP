@@ -208,16 +208,21 @@ results_naive = inference_DSCAP(
   corrected_target_trial = FALSE
 )
 
-# Print and save to file the results for each type of estimator separately.
-sink(paste0("results/data-application/tables/DSCAP_estimates_", population, "_", target, "_", outfile_wts, "_", mnum, ".txt"))
-cat("**Doubly Robust Estimator**\n\n")
-print(results_DR); cat("\n\n")
-cat("**IPW Estimator**\n\n")
-print(results_ipw); cat("\n\n")
-cat("**Standardized Estimator**\n\n")
-print(results_st); cat("\n\n")
-cat("**Naive Estimator**\n\n")
-sink()
+# Determine to which trial each treatment group corresponded.
+treatment_trial_mapping <- df %>%
+  filter(A != 0) %>%
+  group_by(A) %>%
+  summarise(trial = unique(trial)) %>%
+  ungroup()
+
+results_DR <- results_DR %>% 
+  left_join(treatment_trial_mapping, by = c("treatment" = "A"))
+results_ipw <- results_ipw %>%
+  left_join(treatment_trial_mapping, by = c("treatment" = "A"))
+results_st <- results_st %>%
+  left_join(treatment_trial_mapping, by = c("treatment" = "A"))
+results_naive <- results_naive %>%
+  left_join(treatment_trial_mapping, by = c("treatment" = "A"))
 
 # Merge the tibbles with estimates and save as an rds file.
 all_results_tbl = bind_rows(
@@ -226,6 +231,21 @@ all_results_tbl = bind_rows(
   results_st %>% mutate(type = "standardized"),
   results_naive %>% mutate(type = "naive")
 )
-saveRDS(all_results_tbl, file = paste0("results/data-application/raw-results/DSCAP_estimates_", population, "_", target, "_", outfile_wts, "_", mnum, ".rds"))
+saveRDS(
+  all_results_tbl,
+  file = paste0(
+    "results/data-application/raw-results/DSCAP_estimates_",
+    population,
+    "_",
+    target,
+    "_",
+    outfile_wts,
+    "_",
+    mnum,
+    "_",
+    antibody_type,
+    ".rds"
+  )
+)
 
 
