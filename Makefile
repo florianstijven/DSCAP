@@ -25,8 +25,10 @@ simulation: results/simulations/raw-results/simulations_results_tbl.rds \
 	results/simulations/raw-results/true_values_tbl.rds \
 	R/simulations/process-simulations.Rout
 
-application: R/data-application/neut_AZ_full_M1_estwts.Rout R/data-application/spike_AZ_full_M1_estwts.Rout \
-	R/data-application/neut_AZ_truncated_M2_estwts.Rout R/data-application/spike_AZ_truncated_M2_estwts.Rout \
+application: results/raw-results/DSCAP_estimates_full_AZ_estwts_1_neut.rds \
+	results/raw-results/DSCAP_estimates_full_AZ_estwts_1_spike.rds \
+	results/raw-results/DSCAP_estimates_truncated_AZ_estwts_2_neut.rds \
+	results/raw-results/DSCAP_estimates_truncated_AZ_estwts_2_spike.rds \
 	R/data-application/plots_tables.Rout
 # R/data-exploration.Rout
 # R/data-exploration.R can only be run when the original data are available. We 
@@ -39,24 +41,26 @@ application: R/data-application/neut_AZ_full_M1_estwts.Rout R/data-application/s
 
 # Analyses with all trials. 
 
-R/data-application/neut_AZ_full_M1_estwts.Rout: R/data-application/estimate_dscap.R $(analysishelpers) $(data)
-	Rscript --verbose R/estimate_dscap.R neut AZ $(formula) 1 $(B) $(B) 1 0 $(data) > $@ 2> $@
+results/raw-results/DSCAP_estimates_full_AZ_estwts_1_neut.rds: R/data-application/estimate_dscap.R $(analysishelpers) $(data)
+	Rscript --verbose R/data-application/estimate_dscap.R neut AZ $(formula) 1 $(B) $(B) 1 0 $(data)
 	
-R/data-application/spike_AZ_full_M1_estwts.Rout: R/data-application/estimate_dscap.R $(analysishelpers) $(data)
-	Rscript --verbose R/estimate_dscap.R spike AZ $(formula) 1 $(B) $(B) 1 0 $(data) > $@ 2> $@
+results/raw-results/DSCAP_estimates_full_AZ_estwts_1_spike.rds: R/data-application/estimate_dscap.R $(analysishelpers) $(data)
+	Rscript --verbose R/data-application/estimate_dscap.R spike AZ $(formula) 1 $(B) $(B) 1 0 $(data)
 	
 # Analyses with J&J (Colombia), J&J (Brazil), and Novavax left out 
 
-R/data-application/neut_AZ_truncated_M2_estwts.Rout: R/data-application/estimate_dscap.R $(analysishelpers) $(data)
-	Rscript --verbose R/estimate_dscap.R neut AZ $(formula) 2 $(B) $(B) 1 1 $(data) > $@ 2> $@
+results/raw-results/DSCAP_estimates_truncated_AZ_estwts_2_neut.rds: R/data-application/estimate_dscap.R $(analysishelpers) $(data)
+	Rscript --verbose R/data-application/estimate_dscap.R neut AZ $(formula) 2 $(B) $(B) 1 1 $(data)
 	
-R/data-application/spike_AZ_truncated_M2_estwts.Rout: R/data-application/estimate_dscap.R $(analysishelpers) $(data)
-	Rscript --verbose R/estimate_dscap.R spike AZ $(formula) 2 $(B) $(B) 1 1 $(data) > $@ 2> $@
+results/raw-results/DSCAP_estimates_truncated_AZ_estwts_2_spike.rds: R/data-application/estimate_dscap.R $(analysishelpers) $(data)
+	Rscript --verbose R/data-application/estimate_dscap.R spike AZ $(formula) 2 $(B) $(B) 1 1 $(data)
 
 
 # Generate all plots and tables that summarize the results of the analyses. 
-R/data-application/plots_tables.Rout: R/data-application/neut_AZ_full_M1_estwts.Rout R/data-application/spike_AZ_full_M1_estwts.Rout \
-	R/data-application/neut_AZ_truncated_M2_estwts.Rout R/data-application/spike_AZ_truncated_M2_estwts.Rout
+R/data-application/plots_tables.Rout: results/raw-results/DSCAP_estimates_full_AZ_estwts_1_neut.rds \
+	results/raw-results/DSCAP_estimates_full_AZ_estwts_1_spike.rds \
+	results/raw-results/DSCAP_estimates_truncated_AZ_estwts_2_neut.rds \
+	results/raw-results/DSCAP_estimates_truncated_AZ_estwts_2_spike.rds
 	Rscript --verbose R/plots_tables.R AZ > $@ 2> $@
 	
 	
