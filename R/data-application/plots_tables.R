@@ -4,12 +4,9 @@ library(tidyverse)
 library(patchwork)
 
 # Specify options for saving the plots to files
-figures_dir = "results/figures/"
-tables_dir = "results/tables/"
-raw_results_dir = "results/raw-results/"
-
-# Source functions that help for reading in the raw-result files.
-source("R/helper-functions/processing_results.R")
+figures_dir = "results/data-application/figures/"
+tables_dir = "results/data-application/tables/"
+raw_results_dir = "results/data-application/raw-results/"
 
 ## Analysis Parameters ---------------------------------------------------
 
@@ -58,7 +55,23 @@ target_trial = switch(
 # Read in the raw data files and combine all results into a single data set. 
 all_results_tbl = plot_parameters_tbl %>%
   rowwise(everything()) %>%
-  reframe(read_results(target, modn, surr_type, estimate_weights, nX, truncation))
+  reframe(read_rds(
+    file = paste0(
+      raw_results_dir,
+      "DSCAP_estimates_",
+      ifelse(truncation, "truncated", "full"),
+      "_",
+      target,
+      "_",
+      ifelse(estimate_weights, "estwts", "kwnwts"),
+      "_",
+      modn,
+      "_",
+      surr_type
+      ,
+      ".rds"
+    )
+  ))
 
 # Add extra variable indicating the J&J trials.
 all_results_tbl = all_results_tbl %>%
@@ -67,7 +80,7 @@ all_results_tbl = all_results_tbl %>%
 # Plotting -------------------------------------------------------------
 
 # Function to make MA plots.
-ma_plot = function(modn = 1, bootstrap = FALSE, estimate_weights = TRUE, target, truncation) {
+ma_plot = function(modn = 1, estimate_weights = TRUE, target, truncation, type) {
   trials_chr = c(
     "AstraZeneca",
     "J&J (Brazil)",
@@ -79,71 +92,29 @@ ma_plot = function(modn = 1, bootstrap = FALSE, estimate_weights = TRUE, target,
     "Novavax"
   )
   
-  plotting_data = left_join(
-    all_results_tbl %>%
-      select(
-        c(
-          "estimate",
-          "estimand",
-          "type",
-          "trial",
-          "jnj_trial",
-          "target",
-          "modn",
-          "surr_type",
-          "estimate_weights",
-          "truncation"
-        )
-      ) %>%
-      filter(estimand %in% c("mean_diff_S", "VE")) %>%
-      pivot_wider(names_from = "estimand", values_from = "estimate"),
-    all_results_tbl %>%
-      select(
-        c(
-          "CI_lower",
-          "CI_upper",
-          "CI_lower_bs",
-          "CI_upper_bs",
-          "estimand",
-          "type",
-          "trial",
-          "jnj_trial",
-          "target",
-          "modn",
-          "surr_type",
-          "estimate_weights",
-          "truncation"
-        )
-      ) %>%
-      filter(estimand %in% c("mean_diff_S", "VE")) %>%
-      pivot_longer(cols = c(
-        "CI_lower", "CI_upper", "CI_lower_bs", "CI_upper_bs"
-      )) %>%
-      pivot_wider(
-        names_from = c("estimand", "name"),
-        values_from = "value"
-      )
-  ) %>%
-    filter(
-      type %in% c("naive", "standardized"),
+  plotting_data = all_results_tbl %>%
+    filter(type %in% c("naive", .env$type),
       modn == modn,
       !is.na(trial),
       estimate_weights == .env$estimate_weights,
       target == .env$target,
       truncation == .env$truncation
-    )  %>%
+    )   %>%
     mutate()
   
-  # Use bootstrap CIs if requested.
-  if (bootstrap) {
-    plotting_data = plotting_data %>%
-      mutate(
-        VE_CI_lower = VE_CI_lower_bs,
-        VE_CI_upper = VE_CI_upper_bs,
-        mean_diff_S_CI_lower = mean_diff_S_CI_lower_bs,
-        mean_diff_S_CI_upper = mean_diff_S_CI_upper_bs
-      )
-  }
+  # Pivot the `plotting_data` to wide format with a seperate column for VE_est and 
+  # mean_diff_S_est. This makes it easier to plot the estimates and confidence
+  # intervals in the MA plot.
+  plotting_data = plotting_data %>%
+    pivot_wider(
+      id_cols = c(surr_type, trial, type),
+      names_from = measure,
+      values_from = c(estimate, CI_lower_bs, CI_upper_bs)
+    ) %>%
+    mutate(
+      type = ifelse(type == "naive", "Unstandardized", "Standardized"),
+      type = factor(type, levels = c("Unstandardized", "Standardized"))
+    )
   
   # Limits for the y-axis depend on the settings. The lower limit for the y-axis
   # is set to a negative value in the 8-trial analyses because the standardized
@@ -151,23 +122,19 @@ ma_plot = function(modn = 1, bootstrap = FALSE, estimate_weights = TRUE, target,
   if (modn == 1) y_lims = c(-0.5, 1) else y_lims = c(0, 1)
   # Plot for binding Ab.
   ma_ggplot = plotting_data %>%
-    filter(modn == .env$modn) %>%
-    mutate(surr_type = ifelse(surr_type == "spike", "Binding Ab", "Neutralizing Ab"),
-           type = ifelse(type == "naive", "Unstandardized", "Standardized"),
-           type = factor(type, levels = c("Unstandardized", "Standardized"))) %>%
     ggplot(aes(
-      x = mean_diff_S,
-      y = VE,
+      x = estimate_mean_diff_S_est,
+      y = estimate_VE_est,
       color = trial,
       shape = trial
     )) +
     geom_errorbar(
-      aes(ymin = VE_CI_lower, ymax = VE_CI_upper),
+      aes(ymin = CI_lower_bs_VE_est, ymax = CI_upper_bs_VE_est),
       width = 0.05,
       color = "darkgrey"
     ) +
     geom_errorbar(
-      aes(xmin = mean_diff_S_CI_lower, xmax = mean_diff_S_CI_upper),
+      aes(xmin = CI_lower_bs_mean_diff_S_est, xmax = CI_upper_bs_mean_diff_S_est),
       width = 0.05,
       color = "darkgrey"
     ) +
@@ -200,28 +167,24 @@ ma_plot = function(modn = 1, bootstrap = FALSE, estimate_weights = TRUE, target,
 
 # Save all plots.
 plot_parameters_tbl %>%
-  cross_join(tibble(bootstrap = c(TRUE, FALSE))) %>%
+  expand_grid(tibble(type = c("standardized", "doubly robust", "ipw"))) %>%
   mutate(temp = purrr::pmap(
     .l = list(
       target = target,
       modn = modn,
       estimate_weights = estimate_weights,
-      bootstrap = bootstrap,
-      truncation = truncation
+      truncation = truncation,
+      type = type
     ),
     .f = function(target,
                   modn,
                   estimate_weights,
-                  bootstrap, 
-                  truncation) {
+                  truncation,
+                  type) {
       if (estimate_weights)
         weights_chr = "estwts"
       else
         weights_chr = "kwnwts"
-      if (bootstrap)
-        bs_chr = "_bs"
-      else
-        bs_chr = ""
       outfile = paste0("ma_plot_",
                        target,
                        "_",
@@ -231,9 +194,10 @@ plot_parameters_tbl %>%
                        modn,
                        "_",
                        weights_chr,
-                       bs_chr,
+                       "_",
+                       type,
                        ".pdf")
-      ma_plot(modn, bootstrap, estimate_weights, target, truncation)
+      ma_plot(modn, estimate_weights, target, truncation, type)
       ggsave(
         filename = outfile,
         device = "pdf",
@@ -251,13 +215,13 @@ plot_parameters_tbl %>%
 
 # Helper function to save tables for trial-level estimates given `surr_type`,
 # `target`, and `modn`.
-save_table_trial_level = function(surr_type, target, modn, estimate_weights, truncation) {
+save_table_results = function(surr_type, target, modn, estimate_weights, truncation) {
   if (estimate_weights)
     weights_chr = "estwts"
   else
     weights_chr = "kwnwts"
-  
-  temp_tbl = all_results_tbl %>%
+
+  all_results_tbl_filtered <- all_results_tbl %>%
     filter(
       target == .env$target,
       surr_type == .env$surr_type,
@@ -265,38 +229,43 @@ save_table_trial_level = function(surr_type, target, modn, estimate_weights, tru
       estimate_weights == .env$estimate_weights,
       truncation == .env$truncation
     ) %>%
-    filter(!is.na(trial))
-  
-  outfile_table = paste0(tables_dir, "trial_level_", surr_type, "_", target, "_", truncation, "_M", modn, "_", weights_chr, ".csv")
-  write.csv(temp_tbl, outfile_table, row.names=FALSE)
-}
-
-# Helper function to save tables for the association parameter estimates
-save_table_surr_measures = function(surr_type, target, modn, estimate_weights, truncation) {
-  if (estimate_weights)
-    weights_chr = "estwts"
-  else
-    weights_chr = "kwnwts"
-
-  temp_tbl = all_results_tbl %>%
-    filter(is.na(trial)) %>%
-    filter(
-      target == .env$target,
-      surr_type == .env$surr_type,
-      modn == .env$modn,
-      estimate_weights == .env$estimate_weights,
-      truncation == .env$truncation
+    select(
+      -target, -modn, -surr_type, -truncation, -estimate_weights
     )
-  outfile_table = paste0(tables_dir, "surr_measures_", surr_type, "_", target, "_", truncation, "_M", modn, "_", weights_chr, ".csv")
-  write.csv(temp_tbl, outfile_table, row.names=FALSE)
+  
+  # Print and save to file the results for each type of estimator separately.
+  sink(paste0(tables_dir, "trial_level_", surr_type, "_", target, "_", truncation, "_M", modn, "_", weights_chr, ".txt"))
+  cat("**Doubly Robust Estimator**\n\n")
+  all_results_tbl_filtered %>%
+    filter(type == "doubly robust") %>%
+    select(-type) %>%
+    print()
+  cat("\n\n")
+  cat("**IPW Estimator**\n\n")
+  all_results_tbl_filtered %>%
+    filter(type == "ipw") %>%
+    select(-type) %>%
+    print()
+  cat("\n\n")
+  cat("**Standardized Estimator**\n\n")
+  all_results_tbl_filtered %>%
+    filter(type == "standardized") %>%
+    select(-type) %>%
+    print()
+  cat("\n\n")
+  cat("**Naive Estimator**\n\n")
+  all_results_tbl_filtered %>%
+    filter(type == "naive") %>%
+    select(-type) %>%
+    print()
+  sink()
 }
 
 # Save tables
 plot_parameters_tbl %>%
   rowwise() %>%
   summarise(
-    save_table_trial_level(surr_type, target, modn, estimate_weights, truncation),
-    save_table_surr_measures(surr_type, target, modn, estimate_weights, truncation)
+    save_table_results(surr_type, target, modn, estimate_weights, truncation)
   )
 
 ## Tables for Paper ----------------------------------------------------
@@ -304,6 +273,7 @@ plot_parameters_tbl %>%
 # Table with summary of results for the main text. We present the results for
 # the full-population 8-trial analysis and truncated-population 6-trial analysis
 # in the main text of the paper.
+sink(paste0(tables_dir, "surrogacy-main-results.txt"))
 all_results_tbl %>%
   filter(is.na(trial)) %>%
   filter(
@@ -311,6 +281,6 @@ all_results_tbl %>%
   ((truncation == 1) & (modn == 2)) | ((truncation == 0) & (modn == 1))
   ) %>%
   mutate(modn = ifelse(modn == 1, "8-trial analysis", "6-trial analysis")) %>%
-  select(modn, type, estimand, estimate, CI_lower, CI_upper, CI_lower_bs, CI_upper_bs, surr_type) %>%
-  write.csv(file = paste0(tables_dir, "surrogacy-main-results.csv"), row.names=FALSE)
-
+  select(modn, type, measure, estimate, CI_lower_bs, CI_upper_bs, surr_type) %>%
+  print(n = 500)
+sink()
