@@ -5,6 +5,8 @@ t1 = Sys.time()
 
 ## Setup ----------------------------------------------------------------------------
 
+set.seed(2)
+
 # Extract arguments for analysis. 
 args = commandArgs(trailingOnly=TRUE)
 antibody_type <- args[1]

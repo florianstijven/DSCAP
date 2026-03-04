@@ -61,7 +61,7 @@ R/data-application/plots_tables.Rout: results/raw-results/DSCAP_estimates_full_A
 	results/raw-results/DSCAP_estimates_full_AZ_estwts_1_spike.rds \
 	results/raw-results/DSCAP_estimates_truncated_AZ_estwts_2_neut.rds \
 	results/raw-results/DSCAP_estimates_truncated_AZ_estwts_2_spike.rds
-	Rscript --verbose R/plots_tables.R AZ > $@ 2> $@
+	Rscript --verbose R/data-application/plots_tables.R AZ > $@ 2> $@
 	
 	
 results/simulations/raw-results/simulations_results_tbl.rds: R/simulations/run_simulation.R $(analysishelpers) $(simulationhelpers)
