@@ -144,7 +144,7 @@ inference_DSCAP <- function(data,
                             target_trial,
                             estimate_weights = FALSE,
                             CC_weight_var = NULL,
-                            corrected_target_trial,
+                            corrected_target_trial = FALSE,
                             B,
                             stratified_bs = TRUE,
                             alpha = 0.05) {
