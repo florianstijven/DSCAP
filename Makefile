@@ -5,7 +5,7 @@ N_MC = 100
 # Number of MC IPD replicates (per trial) to approximate true values.
 n_MC = 1e6
 # Number of bootstrap replications and replications for the permutation test in data application.
-B = 3
+B = 1000
 
 # Rscripts that contain helper functions.
 analysishelpers = R/helper-functions/DSCAP-estimators.R R/helper-functions/permutation-LRT.R R/helper-functions/treatment-effect-estimators.R
