@@ -38,8 +38,8 @@ param_tbl <- tibble(
       c(-7.8, 1.5, .06),
       c(-7.4, 1.5, .06),
       c(-7.2, 1.5, .06),
-      c(-7.8, 1.55, .06),
-      c(-7.8, 1.45, .06),
+      c(-7.9, 1.55, .06),
+      c(-7.4, 1.45, .06),
       c(-9, 1.5, 0.068),
       c(-8.7, 1.2, .068),
       c(-10.2, 1, .072),
@@ -75,10 +75,10 @@ param_tbl <- tibble(
     ),
     rbind(
       c(-5.5, 1.5, .1),
-      c(-5.4, 1.5, .1),
-      c(-5.3, 1.5, .1),
-      c(-5.5, 1.45, .1),
-      c(-5.5, 1.5, .12),
+      c(-5.425, 1.5, .1),
+      c(-5.45, 1.5, .1),
+      c(-5.55, 1.5, .1),
+      c(-5.575, 1.5, .1),
       c(-2.971, 1, .08),
       c(-3.775, 1.5, .081),
       c(-0.718, 1, .09),
@@ -108,3 +108,12 @@ dgm_param_tbl <- tibble(
   )) %>%
   # joint with parameter values for each setting.
   left_join(param_tbl, by = "setting")
+
+# For the first two settings, we only consider n_t = 3000 since there are many
+# clinical events in those settings. For the third setting, we only consider n_t
+# = 8000 since there are few clinical events in that setting.
+dgm_param_tbl <- dgm_param_tbl %>%
+  filter(
+    (setting %in% c("1", "2") & n_t == 3000) |
+      (setting == "3" & n_t == 8000)
+  )
