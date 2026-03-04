@@ -195,6 +195,7 @@ ipw_estimator <- function(data,
     # treatment with the weight.
     mutate(W_hat_a = ifelse(treatment == treatment_pred, weight, 0)) %>%
     group_by(treatment) %>%
+    mutate(S = ifelse(Delta == 1, S, 0)) %>%
     # Divide the weighted sum of the outcomes by the sum of the weights. This is
     # asymptotically equivalent to dividing by the sample size, but generally
     # leads to better finite-sample performance.
@@ -324,6 +325,7 @@ DR_estimator <- function(data,
       relationship = "many-to-one"
     ) %>%
     mutate(W_hat_a = ifelse(treatment == treatment_pred, weight, 0)) %>%
+    mutate(S = ifelse(Delta == 1, S, 0)) %>%
     group_by(treatment) %>%
     dplyr::summarize(
       mean_Y_correction = sum(W_hat_a * (Y - predicted_Y_a) * Delta * CC_weight) / sum(W_hat_a * Delta * CC_weight),
@@ -361,8 +363,8 @@ naive_estimator <- function(data,
     estimate_weights,
     CC_weight_var
   )
-
   naive_means_df = df %>%
+    mutate(S = ifelse(Delta == 1, S, 0)) %>%
     group_by(trial, treatment) %>%
     dplyr::summarize(
       mean_Y = mean(Y),
@@ -485,6 +487,20 @@ compute_ipw_weights <- function(df, formula_T, target_trial) {
   # treatment in the trial in which the active treatment is given and 0 for
   # other treatments.
 
+  # For each trial, we need the treatment level corresponding to that trial's
+  # active treatment. 
+  treatment_int_by_trial_df = df %>%
+    filter(treatment != 0) %>%
+    group_by(trial) %>%
+    summarize(treatment_int = max(treatment)) %>%
+    ungroup() 
+  
+  treatment_int_by_trial <- treatment_int_by_trial_df %>%
+    pull(treatment_int)
+  names(treatment_int_by_trial) <- levels(treatment_int_by_trial_df$trial)
+  
+    
+  
   # Create tibble in long format that contains for every subject (i.e., for X_i)
   # the treatment assignment probability P(A = a | X, T = t) for all a and t.
   df_weight_helper <- df %>%
@@ -495,7 +511,7 @@ compute_ipw_weights <- function(df, formula_T, target_trial) {
     mutate(
       predicted_prob_treatment_XT = case_when(
         treatment_pred == 0 ~ 0.5,
-        treatment_pred >= 1 & trial_pred == treatment_pred ~ 0.5,
+        treatment_pred >= 1 & treatment_int_by_trial[trial_pred] == treatment_pred ~ 0.5,
         .default = 0
       )
     ) %>%
