@@ -492,7 +492,7 @@ compute_ipw_weights <- function(df, formula_T, target_trial) {
   treatment_int_by_trial_df = df %>%
     filter(treatment != 0) %>%
     group_by(trial) %>%
-    summarize(treatment_int = max(treatment)) %>%
+    dplyr::summarize(treatment_int = max(treatment)) %>%
     ungroup() 
   
   treatment_int_by_trial <- treatment_int_by_trial_df %>%
