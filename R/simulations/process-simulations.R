@@ -341,7 +341,7 @@ walk2(coverage_plots$measure, coverage_plots$plot_no_cc, ~ggsave(
 # Tables ---------------------------------------------------------------
 
 ## True Values and Event Proportions ------------------------------------------------
-
+options(width = 1000) 
 # Print the true trial-level standardized effects.
 sink(file = paste0(tables_dir, "true-trial-level-effects.txt"))
 true_values_tbl %>%
