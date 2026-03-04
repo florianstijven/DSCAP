@@ -105,6 +105,7 @@ ma_plot = function(modn = 1, estimate_weights = TRUE, target, truncation, type) 
   # Pivot the `plotting_data` to wide format with a seperate column for VE_est and 
   # mean_diff_S_est. This makes it easier to plot the estimates and confidence
   # intervals in the MA plot.
+  browser()
   plotting_data = plotting_data %>%
     pivot_wider(
       id_cols = c(surr_type, trial, type),
@@ -113,7 +114,8 @@ ma_plot = function(modn = 1, estimate_weights = TRUE, target, truncation, type) 
     ) %>%
     mutate(
       type = ifelse(type == "naive", "Unstandardized", "Standardized"),
-      type = factor(type, levels = c("Unstandardized", "Standardized"))
+      type = factor(type, levels = c("Unstandardized", "Standardized")),
+      surr_type = ifelse(surr_type == "spike", "Binding Ab", "Neutralizing Ab"),
     )
   
   # Limits for the y-axis depend on the settings. The lower limit for the y-axis
