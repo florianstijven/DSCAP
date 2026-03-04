@@ -38,6 +38,11 @@ dgm_param_tbl = dgm_param_tbl %>%
   # computations.
   select(-CC_sampling)
 
+# For scenario X (i.e., violation of exchangeability), we need to set
+# `different_placebo_model` to TRUE.
+dgm_param_tbl <- dgm_param_tbl %>%
+  mutate(different_placebo_model = ifelse(setting == "X", TRUE, FALSE))
+
 # Define formulas for the outcome models for (i) clinical outcome Y and (ii)
 # surrogate outcome S. The same linear predictors are used for both models. In
 # the simulations, the corresponding models are automatically stratified by
@@ -65,14 +70,14 @@ simulate_and_analyze <- function(n_trials,
                                  theta,
                                  zeta,
                                  CC_sampling,
-                                 ZOPT = NA,
                                  formula_S,
                                  formula_Y,
                                  formula_T,
                                  target_trial,
                                  estimate_weights = FALSE,
                                  alpha = 0.05,
-                                 B) {
+                                 B,
+                                 different_placebo_model) {
   # Generate data.
   simulated_data <- generate_simulated_data(
     n_trials = n_trials,
@@ -83,7 +88,8 @@ simulate_and_analyze <- function(n_trials,
     theta = theta,
     zeta = zeta,
     CC_sampling = CC_sampling, 
-    target_trial = target_trial
+    target_trial = target_trial,
+    different_placebo_model = different_placebo_model
   )
   
   # Compute proportion of events in each trial-treatment arm.
@@ -144,7 +150,8 @@ true_values_tbl$inferences_tbl = future_pmap(
     gamma = true_values_tbl$gamma,
     theta = true_values_tbl$theta,
     zeta = true_values_tbl$zeta,
-    target_trial = true_values_tbl$target_trial
+    target_trial = true_values_tbl$target_trial,
+    different_placebo_model = true_values_tbl$different_placebo_model
   ),
   .f = simulate_and_analyze,
   formula_S = formula_S,
@@ -163,11 +170,9 @@ true_values_tbl$inferences_tbl = future_pmap(
 # contains one estimate for a given parameter. Hence, the estimates and
 # inferences for a single simulated data set span many rows.
 true_values_tbl = true_values_tbl %>%
-  # Recode the `target_trial` variable to be more interpretable.
-  rowwise(everything()) %>%
-  summarize(target_trial = ifelse(is.null(target_trial), "naive", "standardized")) %>%
-  ungroup() %>%
   select(-theta, -gamma, -zeta, -data_set_indicator, -n_t) %>%
+  # Recode the `target_trial` variable to be more interpretable.
+  mutate(target_trial = ifelse(is.null(target_trial), "naive", "standardized")) %>%
   unnest(inferences_tbl)
 
 # Save Results -------------------------------------------------------------
