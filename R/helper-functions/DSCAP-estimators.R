@@ -144,6 +144,7 @@ inference_DSCAP <- function(data,
                             target_trial,
                             estimate_weights = FALSE,
                             CC_weight_var = NULL,
+                            corrected_target_trial,
                             B,
                             stratified_bs = TRUE,
                             alpha = 0.05) {
@@ -160,7 +161,8 @@ inference_DSCAP <- function(data,
     treatment_var = treatment_var,
     target_trial = target_trial,
     estimate_weights = estimate_weights,
-    CC_weight_var = CC_weight_var
+    CC_weight_var = CC_weight_var,
+    corrected_target_trial = corrected_target_trial
   ) %>%
     do.call(what = estimates_table_join)
 
@@ -178,7 +180,8 @@ inference_DSCAP <- function(data,
       treatment_var = treatment_var,
       target_trial = target_trial,
       estimate_weights = estimate_weights,
-      CC_weight_var = CC_weight_var
+      CC_weight_var = CC_weight_var,
+      corrected_target_trial = corrected_target_trial
     )
     estimates_table_join(estimates_list[[1]], estimates_list[[2]]) %>%
       pull(estimate) %>%

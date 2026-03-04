@@ -83,7 +83,8 @@ analyze <- function(data,
                     estimate_weights = FALSE,
                     alpha = 0.05,
                     B,
-                    n_permutations) {
+                    n_permutations,
+                    corrected_target_trial) {
   # Analyze the simulated data using the naive, standardization, ipw, and doubly
   # robust estimators.
   inferences_naive_tbl <- inference_DSCAP(
@@ -112,7 +113,8 @@ analyze <- function(data,
     trial_var = "trial",
     treatment_var = "A",
     alpha = alpha,
-    B = B
+    B = B,
+    corrected_target_trial = corrected_target_trial
   )
   inferences_ipw_tbl <- inference_DSCAP(
     data = data,
@@ -126,7 +128,8 @@ analyze <- function(data,
     trial_var = "trial",
     treatment_var = "A",
     alpha = alpha,
-    B = B
+    B = B,
+    corrected_target_trial = corrected_target_trial
   )
   inferences_DR_tbl <- inference_DSCAP(
     data = data,
@@ -140,7 +143,8 @@ analyze <- function(data,
     trial_var = "trial",
     treatment_var = "A",
     alpha = alpha,
-    B = B
+    B = B,
+    corrected_target_trial = corrected_target_trial
   )
   # Join the inference results for the different estimators into one table and
   # add a column indicating the estimator type.
@@ -208,6 +212,7 @@ simulate_and_analyze <- function(n_trials,
                                  alpha = 0.05,
                                  B, 
                                  n_permutations,
+                                 corrected_target_trial,
                                  different_placebo_model) {
   # Generate data.
   simulated_data <- generate_simulated_data(
@@ -233,7 +238,8 @@ simulate_and_analyze <- function(n_trials,
     estimate_weights = estimate_weights,
     alpha = alpha,
     B = B,
-    n_permutations = n_permutations
+    n_permutations = n_permutations,
+    corrected_target_trial = corrected_target_trial
   )
   
   return(inferences_tbl)
@@ -275,6 +281,7 @@ simulations_results_tbl$inferences_tbl = future_pmap(
   alpha = 0.05,
   B = n_boot,
   n_permutations = n_permutations,
+  corrected_target_trial = FALSE,
   .options = furrr_options(
     seed = TRUE,
     stdout = FALSE,
