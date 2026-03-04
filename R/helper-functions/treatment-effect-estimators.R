@@ -486,13 +486,13 @@ compute_ipw_weights <- function(df, formula_T, target_trial) {
   # probability is 0.5 for control in all trials, and 0.5 for the active
   # treatment in the trial in which the active treatment is given and 0 for
   # other treatments.
-
+  browser()
   # For each trial, we need the treatment level corresponding to that trial's
   # active treatment. 
   treatment_int_by_trial_df = df %>%
     filter(treatment != 0) %>%
     group_by(trial) %>%
-    summarize(treatment_int = max(treatment)) %>%
+    dplyr::summarize(treatment_int = max(treatment)) %>%
     ungroup() 
   
   treatment_int_by_trial <- treatment_int_by_trial_df %>%
