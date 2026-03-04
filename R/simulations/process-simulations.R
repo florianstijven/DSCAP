@@ -24,7 +24,7 @@ true_values_tbl <- readRDS(
 simulations_results_tbl <- simulations_results_tbl %>%
   left_join(true_values_tbl %>%
               filter(target_trial == "standardized") %>%
-              select(-target_trial),
+              select(-target_trial, -different_placebo_model),
             by = c("setting", "n_trials", "measure", "treatment"),
             relationship = "many-to-one")
 

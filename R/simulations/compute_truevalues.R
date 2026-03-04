@@ -172,7 +172,9 @@ true_values_tbl$inferences_tbl = future_pmap(
 true_values_tbl = true_values_tbl %>%
   select(-theta, -gamma, -zeta, -data_set_indicator, -n_t) %>%
   # Recode the `target_trial` variable to be more interpretable.
-  mutate(target_trial = ifelse(is.null(target_trial), "naive", "standardized")) %>%
+  rowwise(everything()) %>%
+  summarize(target_trial = ifelse(is.null(target_trial), "naive", "standardized")) %>%
+  ungroup() %>%
   unnest(inferences_tbl)
 
 # Save Results -------------------------------------------------------------
