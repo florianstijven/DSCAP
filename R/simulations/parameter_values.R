@@ -115,5 +115,6 @@ dgm_param_tbl <- tibble(
 dgm_param_tbl <- dgm_param_tbl %>%
   filter(
     (setting %in% c("1", "2") & n_t == 3000) |
-      (setting == "3" & n_t == 8000)
+      (setting == "3" & n_t == 8000) |
+      (setting == "X" & n_t %in% c(3000))
   )

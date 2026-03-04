@@ -24,7 +24,7 @@ N_MC <- as.numeric(args[1])
 # Number of bootstrap replications for inference.
 n_boot <- as.numeric(args[2])
 # Number of replications for permutation test for conditional independence.r
-n_perm <- as.numeric(args[3])
+n_permutations <- as.numeric(args[3])
 
 # Source parameter values that also includes a tibble containing all scenarios
 # studied.
@@ -82,7 +82,8 @@ analyze <- function(data,
                     target_trial,
                     estimate_weights = FALSE,
                     alpha = 0.05,
-                    B) {
+                    B,
+                    n_permutations) {
   # Analyze the simulated data using the naive, standardization, ipw, and doubly
   # robust estimators.
   inferences_naive_tbl <- inference_DSCAP(
@@ -159,7 +160,7 @@ analyze <- function(data,
     family = binomial(),
     treatment_var = "A",
     trial_var = "trial",
-    n_perm = n_perm,
+    n_permutations = n_permutations,
     estimate_weights = estimate_weights
   )
   
@@ -170,7 +171,7 @@ analyze <- function(data,
     family = gaussian(),
     treatment_var = "A",
     trial_var = "trial",
-    n_perm = n_perm,
+    n_permutations = n_permutations,
     estimate_weights = estimate_weights
   )
   
@@ -198,7 +199,6 @@ simulate_and_analyze <- function(n_trials,
                                  theta,
                                  zeta,
                                  CC_sampling,
-                                 ZOPT = NA,
                                  formula_S,
                                  formula_Y,
                                  formula_T,
@@ -206,7 +206,9 @@ simulate_and_analyze <- function(n_trials,
                                  target_trial,
                                  estimate_weights = FALSE,
                                  alpha = 0.05,
-                                 B) {
+                                 B, 
+                                 n_permutations,
+                                 different_placebo_model) {
   # Generate data.
   simulated_data <- generate_simulated_data(
     n_trials = n_trials,
@@ -216,7 +218,8 @@ simulate_and_analyze <- function(n_trials,
     gamma = gamma,
     theta = theta,
     zeta = zeta,
-    CC_sampling = CC_sampling
+    CC_sampling = CC_sampling, 
+    different_placebo_model = different_placebo_model
   )
   
   # Analyze data.
@@ -229,7 +232,8 @@ simulate_and_analyze <- function(n_trials,
     target_trial = target_trial,
     estimate_weights = estimate_weights,
     alpha = alpha,
-    B = B
+    B = B,
+    n_permutations = n_permutations
   )
   
   return(inferences_tbl)
@@ -243,17 +247,24 @@ simulate_and_analyze <- function(n_trials,
 # estimates and association measures for each data set.
 data_set_indicator = 1:N_MC
 
+# For scenario X (i.e., violation of exchangeability), we need to set
+# `different_placebo_model` to TRUE.
+dgm_param_tbl <- dgm_param_tbl %>%
+  mutate(different_placebo_model = ifelse(setting == "X", TRUE, FALSE))
+
 simulations_results_tbl <- expand_grid(data_set_indicator, dgm_param_tbl)
+
 
 simulations_results_tbl$inferences_tbl = future_pmap(
   .l = list(
-    n_trials = simulations_results_tbl$n_trials,
-    n_t = simulations_results_tbl$n_t,
-    gamma = simulations_results_tbl$gamma,
-    theta = simulations_results_tbl$theta,
-    zeta = simulations_results_tbl$zeta,
-    CC_sampling = simulations_results_tbl$CC_sampling,
-    formula_CC = simulations_results_tbl$formula_CC
+    n_trials = simulations_results_tbl$n_trials[7],
+    n_t = simulations_results_tbl$n_t[7],
+    gamma = simulations_results_tbl$gamma[7],
+    theta = simulations_results_tbl$theta[7],
+    zeta = simulations_results_tbl$zeta[7],
+    CC_sampling = simulations_results_tbl$CC_sampling[7],
+    formula_CC = simulations_results_tbl$formula_CC[7],
+    different_placebo_model = simulations_results_tbl$different_placebo_model[7]
   ),
   .f = simulate_and_analyze,
   formula_S = formula_S,
@@ -263,6 +274,7 @@ simulations_results_tbl$inferences_tbl = future_pmap(
   estimate_weights = FALSE,
   alpha = 0.05,
   B = n_boot,
+  n_permutations = n_permutations,
   .options = furrr_options(
     seed = TRUE,
     stdout = FALSE,

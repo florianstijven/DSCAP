@@ -2,9 +2,19 @@
 LRT_statistic <- function(data_subset, formula_O, family) {
   # Fit null model, pooling data from the control groups of all trials and not
   # including the trial variable as predictor.
+  if (family$family == "binomial") {
+    # If the outcome is binomial, there is not case-cohort sampling and all
+    # observations should be used.
+    data_subset$CC_weight = 1
+    data_subset$Delta = 1
+  }
   glm_null <- glm(formula = formula_O,
                   family = family,
-                  data = data_subset)
+                  data = data_subset,
+                  subset = (Delta == 1),
+                  weights = CC_weight,
+                  x = FALSE,
+                  y = FALSE)
   # Fit alternative model that contains the interaction between all predictors
   # in the null model and the trial variable.
   glm_w_trial <-update(glm_null, ~ . * trial)
@@ -44,7 +54,7 @@ permutation_LRT <- function(data,
   lrt_test_statistic <- LRT_statistic(data_subset = df_subset, formula_O = formula_O, family = family)
   
   # Initialize vector to store LRT test statistics from the permutations.
-  lrt_test_statistic_permuted = rep(NA, n_perm)
+  lrt_test_statistic_permuted = rep(NA, n_permutations)
   # Vector of trial labels to permute.
   trial_vec = df_subset$trial
   # Permute the data `n_permutations` times, and compute the LRT test statistic
