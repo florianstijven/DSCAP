@@ -41,7 +41,7 @@ source("R/helper-functions/permutation-LRT.R")
 formula_Y = as.formula(paste0("Y ~ ", vars))
 formula_S = as.formula(paste0("S ~ ", vars))
 formula_T = as.formula(paste0("trial ~ ", vars))
-formula_CC = as.formula(paste0("Delta ~ ", "CC_stratum * trial"))
+formula_CC = as.formula(paste0("Delta ~ ", "CC_stratum"))
 
 ## Load data and Prepare for Analysis -----------------------------------
 

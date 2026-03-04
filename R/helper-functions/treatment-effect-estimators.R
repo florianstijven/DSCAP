@@ -46,7 +46,13 @@ data_preparation <- function(data,
       # Fit logistic regression model for the case-cohort sampling mechanism and
       # use the fitted model to estimate the weights. Note that the model is not
       # automatically stratified by trial in the current implementation.
-      CC_model_fit = glm(formula_CC, data = df, family = binomial)
+      CC_model_fit = glm(
+        formula_CC,
+        data = df,
+        family = binomial,
+        x = FALSE,
+        y = FALSE
+      )
       df <- df %>%
         mutate(CC_weight = 1 / predict(
           CC_model_fit,
@@ -487,33 +493,29 @@ compute_ipw_weights <- function(df, formula_T, target_trial) {
   # treatment in the trial in which the active treatment is given and 0 for
   # other treatments.
 
-  # For each trial, we need the treatment level corresponding to that trial's
-  # active treatment. 
-  treatment_int_by_trial_df = df %>%
-    filter(treatment != 0) %>%
-    group_by(trial) %>%
-    dplyr::summarize(treatment_int = max(treatment)) %>%
-    ungroup() 
-  
-  treatment_int_by_trial <- treatment_int_by_trial_df %>%
-    pull(treatment_int)
-  names(treatment_int_by_trial) <- levels(treatment_int_by_trial_df$trial)
-  
-    
-  
   # Create tibble in long format that contains for every subject (i.e., for X_i)
   # the treatment assignment probability P(A = a | X, T = t) for all a and t.
+  # Because we assume simple randomized, we need to estimate P(A = a | T = t)
+  # for all a, t.
+  treatment_prob_by_trial_tbl = df %>%
+    cross_join(expand_grid(
+      treatment_pred = unique(df$treatment),
+    )) %>%
+    group_by(trial, treatment_pred) %>%
+    dplyr::summarize(predicted_prob_treatment_XT = mean(treatment == treatment_pred)) %>%
+    rename(trial_pred = trial) %>%
+    ungroup()
+  
+
   df_weight_helper <- df %>%
     cross_join(expand_grid(
       treatment_pred = unique(df$treatment),
       trial_pred = unique(df$trial)
     )) %>%
-    mutate(
-      predicted_prob_treatment_XT = case_when(
-        treatment_pred == 0 ~ 0.5,
-        treatment_pred >= 1 & treatment_int_by_trial[trial_pred] == treatment_pred ~ 0.5,
-        .default = 0
-      )
+    left_join(
+      treatment_prob_by_trial_tbl,
+      by = c("trial_pred", "treatment_pred"),
+      relationship = "many-to-one"
     ) %>%
     # We only need to retain id, treatment_pred, and predicted_prob_treatment_XT
     # for the IPW estimator.
