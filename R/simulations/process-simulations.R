@@ -350,6 +350,15 @@ true_values_tbl %>%
   print(n = 500)
 sink()
 
+# Print the true causal association parameters.
+sink(file = paste0(tables_dir, "true-causal-association-parameters.txt"))
+true_values_tbl %>%
+  filter(measure %in% c("cor_s_est", "cor_p_est", "beta_est")) %>%
+  pivot_wider(names_from = "measure", values_from = "estimand") %>%
+  select(-treatment, -trial) %>%
+  print(n = 500)
+sink()
+
 # Print the event proportions.
 sink(file = paste0(tables_dir, "event-proportions.txt"))
 true_values_tbl %>%
