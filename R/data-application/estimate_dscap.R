@@ -28,19 +28,18 @@ if (truncation) population = "truncated"
 
 # Load required packages. 
 library(tidyverse)
-# A custom version of the geex package is used to avoid issues with large
-# objects.
-# install.packages("geex_1.1.1.tar.gz", repos = NULL)
-library(geex)
 
 # Load functions that will be used later on. 
-source("R/helper-functions/estFUN.R")
-source("R/helper-functions/runDSCAP.R")
+source("R/helper-functions/treatment-effect-estimators.R")
+source("R/helper-functions/DSCAP-estimators.R")
+source("R/helper-functions/permutation-LRT.R")
 
 # Define formulas for the outcome models for (i) clinical outcome Y and (ii)
 # surrogate outcome S. The same linear predictors are used for both models. 
-Ymod = as.formula(paste0("Y ~ ",vars))
-Smod = as.formula(paste0("S ~ ",vars))
+formula_Y = as.formula(paste0("Y ~ ", vars))
+formula_S = as.formula(paste0("S ~ ", vars))
+formula_T = as.formula(paste0("trial ~ ", vars))
+formula_CC = as.formula(paste0("Delta ~ ", "CC_stratum"))
 
 ## Load data and Prepare for Analysis -----------------------------------
 
@@ -133,352 +132,100 @@ if (antibody_type == "spike") {
     droplevels()
 }
 
-# Get number of trials
-n_trials <- length(unique(df$trial))
-
-# Add variable that defines the target population. 0: for target populations; 1
-# otherwise.
-df$R <- ifelse(df$trial == target_trial , 0, 1)
+# Recode Delta as equal to one in the placebo groups because the immune response
+# is known to be the lower bound for this subjects. 
+df <- df %>% mutate(Delta = ifelse(A == 0, 1, Delta))
 
 
 # Data Analysis -----------------------------------------------------------
 
 ## Estimation -------------------------------------------------------------
-df = df
-# Estimate all models.
-RESULT <- RunDSCAP(
+
+# Use the doubly robust, IPW, standardized, and naive estimators to estimate the
+# treatment effects and corresponding measures of association.
+
+results_DR = inference_DSCAP(
   data = df,
-  formula_S = Smod,
-  formula_Y = Ymod,
+  formula_S = formula_S,
+  formula_Y = formula_Y,
+  formula_T = formula_T,
+  formula_CC = formula_CC,
   target_trial = target_trial,
-  sim = F, 
-  estimate_weights = TRUE
+  estimate_weights = estimate_weights,
+  alpha = 0.05,
+  B = n_boot,
+  type = "doubly robust",
+  treatment_var = "A",
+  trial_var = "trial",
+  corrected_target_trial = FALSE
 )
 
-# If some some strata have an estimated weight of Inf (i.e., zero probability of
-# being sampled in the case-cohort sampling, they are excluded from the further
-# analyses).
-df = df %>%
-  filter(!(CC_stratum %in% RESULT$excluded_CC_strata))
-# Include estimated weights to data.
-df = df %>%
-  left_join(
-    RESULT$weights_df
-  )
-
-## Conditional Independence Tests --------------------------------------------------------
-
-# Fit null model (which does not contain trial as covariate).
-glm_null <- glm(as.formula(paste0("Y ~ ", vars)), binomial, df %>%
-                  filter(A == 0))
-# Fit alternative model (which contains the interaction between trial and all
-# covariates which were  already in the null model).
-glm_w_trial <-update(glm_null, ~ . * trial)
-# Perform likelihood ratio test. 
-glm_lr_test = lmtest::lrtest(glm_null, glm_w_trial)
-
-# Extract LRT statistic and corresponding p-value.
-lrt_test_statistic <- glm_lr_test[2,4]
-lrt_p_value <- glm_lr_test[2,5]
-
-# Initialize data set in which the values of `trial` will be permuted. 
-df_placebo_perm = df %>%
-  filter(A == 0)
-# Extract trial variable which will be permuted.
-trial_vec = df_placebo_perm$trial
-
-lrt_test_statistic_permutations = rep(NA, n_perm)
-set.seed(1)
-for(i in 1:n_perm){
-  df_placebo_perm$trial <- sample(trial_vec, replace = FALSE)
-  
-  glm_w_trial <-update(glm_null, ~ . * trial, data = df_placebo_perm)
-  lrt_test_statistic_permutations[i] <- lmtest::lrtest(glm_null, glm_w_trial)[2,4] #extract LRT stat
-}
-
-lrt_permuted_p_value <- mean(lrt_test_statistic_permutations > lrt_test_statistic)
-lrt_out <- c("p-value" = lrt_p_value, "p-value (permutations)" = lrt_permuted_p_value, "LRT statistic" = lrt_test_statistic)
-
-outfile_lrt = paste0(
-  "results/raw-results/lrt_",
-  antibody_type,
-  "_",
-  target,
-  "_",
-  population,
-  "_M",
-  mnum,
-  "_",
-  outfile_wts,
-  ".csv"
-)
-write.csv(lrt_out, outfile_lrt, row.names=FALSE)
-
-
-## Variance Estimation -----------------------------------------------------
-
-
-outfile = paste0(
-  "results/raw-results/",
-  c("trt_effects_", "cor_est_"),
-  antibody_type,
-  "_",
-  target,
-  "_",
-  population,
-  "_M",
-  mnum,
-  "_",
-  outfile_wts,
-  ".csv"
-)
-
-write.csv(
-  bind_rows(
-    RESULT$standardized_trt_effects_df %>%
-      mutate(type = "standardized"),
-    RESULT$naive_trt_effects_df %>%
-      mutate(type = "naive")
-  ),
-  outfile[1],
-  row.names = FALSE
-)
-write.csv(
-  bind_rows(
-    RESULT$cor_standardized_df %>%
-      mutate(type = "standardized"),
-    RESULT$cor_naive_df %>%
-      mutate(type = "naive")
-  ),
-  outfile[2],
-  row.names = FALSE
-)
-
-## Bootstrap --------------------------------------------------------------
-
-# Initialize dataframe in which the bootstrap replicates will be saved. Note the
-# the results of a single bootstrap replication are saved over many rows. This
-# facilities further processing.
-bootstrap_replicates_df = data.frame(
-  estimand = character(0),
-  type = character(0),
-  trial = character(0),
-  estimate = numeric(0)
-)
-
-# Perform bootstrap by resampling within each trial.
-set.seed(1)
-for (i in 1:n_boot) {
-  # Resample within each trial
-  booti <- df %>%
-    group_by(trial) %>%
-    slice_sample(prop = 1.0, replace = TRUE)
-  
-  try(expr =  {
-    temp <- RunDSCAP(
-      data = booti,
-      formula_S = Smod,
-      formula_Y = Ymod,
-      target_trial = target_trial,
-      sim = F,
-      estimate_weights = estimate_weights
-    )
-    bootstrap_replicates_df = bootstrap_replicates_df %>%
-      bind_rows(
-        tibble(
-          estimand = c("cor_p", "cor_s", "beta"),
-          type = "standardized",
-          trial = NA,
-          estimate = temp$cor_standardized_df[1, ] %>% as.numeric()
-        ),
-        tibble(
-          estimand = c("cor_p", "cor_s", "beta"),
-          type = "naive",
-          trial = NA,
-          estimate = temp$cor_naive_df[1, ] %>% as.numeric()
-        ),
-        tibble(
-          estimand = "VE",
-          type = "standardized",
-          trial = temp$standardized_trt_effects_df %>% pull(trial),
-          estimate = temp$standardized_trt_effects_df %>% pull(VE_est)
-        ),
-        tibble(
-          estimand = "mean_diff_S",
-          type = "standardized",
-          trial = temp$standardized_trt_effects_df %>% pull(trial),
-          estimate = temp$standardized_trt_effects_df %>% pull(mean_diff_S_est)
-        ),
-        tibble(
-          estimand = "VE",
-          type = "naive",
-          trial = temp$naive_trt_effects_df %>% pull(trial),
-          estimate = temp$naive_trt_effects_df %>% pull(VE_est)
-        ),
-        tibble(
-          estimand = "mean_diff_S",
-          type = "naive",
-          trial = temp$naive_trt_effects_df %>% pull(trial),
-          estimate = temp$naive_trt_effects_df %>% pull(mean_diff_S_est)
-        )
-      )
-  }
-  )
-
-  
-  
-}
-
-bootstrap_inferences_df = bootstrap_replicates_df %>%
-  group_by(estimand, type, trial) %>%
-  summarise(
-    CI_lower = quantile(estimate, 0.025, na.rm = TRUE),
-    CI_upper = quantile(estimate, 0.975, na.rm = TRUE),
-    mean = mean(estimate, na.rm = TRUE),
-    se = sd(estimate, na.rm = TRUE)
-  )
-
-outfile_bootstrap = paste0(
-  "results/raw-results/bootstrap_",
-  antibody_type,
-  "_",
-  target,
-  "_",
-  population,
-  "_M",
-  mnum,
-  "_",
-  outfile_wts,
-  ".csv"
-)
-write.csv(bootstrap_inferences_df, outfile_bootstrap, row.names=FALSE)
-
-## Sandwich Standard Errors ----------------------------------------------
-
-# If some of the estimated weights are equal to 1, this will break the sandwich
-# estimator because the corresponding bread matrix will not be invertible. 
-problem_weights = RESULT$weights_df %>%
-  filter(CC_stratum != "Placebo", weight == 1) %>%
-  summarize(n() >= 1) %>%
-  pull() %>% # Returns TRUE if there is an estimated weight of exactly 1.
-  any()
-
-if (estimate_weights & problem_weights) {
-  warning(
-    "At least one weight stratum has an estimated weight equal to one. The original sandwich estimator fails because the bread matrix is not invertible. A modified sandwich estimator is obtained by treating the problematic weight stratum's weight as fixed."
-  )
-  # The problematic stratum is joined with the placebo stratum. This forces the
-  # code to treat the corresponding (estimated) weight as fixed. 
-  problematic_strata = RESULT$weights_df %>%
-    filter(CC_stratum != "Placebo", weight == 1) %>%
-    pull(CC_stratum) %>%
-    unique()
-  df = df %>%
-    mutate(CC_stratum = ifelse(CC_stratum %in% problematic_strata, "Placebo", CC_stratum))
-  
-  # The models and weights are re-estimated, now with the modified weight
-  # strata. Note that all results remain unchanged, except that there is now
-  # one weight stratum fewer.
-  RESULT <- RunDSCAP(
-    data = df,
-    formula_S = Smod,
-    formula_Y = Ymod,
-    target_trial = target_trial,
-    sim = F, 
-    estimate_weights = TRUE
-  )
-}
-
-# Extract estimated parameter vector that corresponds to the set of stacked
-# estimating equations.
-theta = extract_coefs(RESULT, estimate_weights)
-
-# Attach estimated weights to original data frame. These weights will be used if
-# the weights are treated as known for the sandwich variance estimator.
-df = df %>%
-  select(-weight) %>% left_join(RESULT$weights_df, by = "CC_stratum")
-
-# Compute sandwich estimate
-m_est = m_estimate(
-  estFUN = estFUN_taudelta,
+results_ipw = inference_DSCAP(
   data = df,
-  outer_args = list(
-    models_tbl = RESULT$glm_fits_df %>%
-      select(trial_modified, glm_fit_Y, glm_fit_S),
-    weights_df = RESULT$weights_df,
-    target_trial = target_trial
-  ),
-  inner_args = list(
-    estimate_weights = estimate_weights
-  ),
-  roots = theta,
-  compute_roots = FALSE,
-  deriv_control = setup_deriv_control(method = "simple"),
-  compute_vcov = TRUE
+  formula_S = formula_S,
+  formula_Y = formula_Y,
+  formula_T = formula_T,
+  formula_CC = formula_CC,
+  target_trial = target_trial,
+  estimate_weights = estimate_weights,
+  alpha = 0.05,
+  B = n_boot,
+  type = "ipw",
+  treatment_var = "A",
+  trial_var = "trial",
+  corrected_target_trial = FALSE
 )
 
-vcov_m_est <- data.frame(vcov(m_est))
-colnames(vcov_m_est) = names(theta)
-
-
-
-outfile_vcov = paste0("results/raw-results/vcov_",
-                      antibody_type,
-                      "_",
-                      target,
-                      "_",
-                      population,
-                      "_M",
-                      mnum,
-                      "_", 
-                      outfile_wts,
-                      ".csv")
-write.csv(vcov_m_est, outfile_vcov, row.names = FALSE)
-
-t2 = Sys.time()
-print(t2 - t1)
-
-# We repeat the M-estimation procedure for the unstandardized estimates. ----
-
-# Ordering of the trials
-trials_chr = df %>%
-  pull(trial) %>%
-  unique() %>%
-  as.character()
-
-# Extract estimated parameter vector that corresponds to the set of stacked
-# estimating equations.
-theta_naive = extract_coefs_naive(df, estimate_weights, trials_chr)
-
-
-# Compute sandwich estimate
-m_est_naive = m_estimate(
-  estFUN = estFUN_taudelta_naive,
+results_st = inference_DSCAP(
   data = df,
-  outer_args = list(weights_df = RESULT$weights_df, trials_chr = trials_chr),
-  inner_args = list(estimate_weights = estimate_weights),
-  roots = theta_naive,
-  compute_roots = FALSE,
-  deriv_control = setup_deriv_control(method = "simple"),
-  compute_vcov = TRUE
+  formula_S = formula_S,
+  formula_Y = formula_Y,
+  formula_T = formula_T,
+  formula_CC = formula_CC,
+  target_trial = target_trial,
+  estimate_weights = estimate_weights,
+  alpha = 0.05,
+  B = n_boot,
+  type = "standardized",
+  treatment_var = "A",
+  trial_var = "trial",
+  corrected_target_trial = FALSE
 )
 
-vcov_m_est_naive <- data.frame(vcov(m_est_naive))
-colnames(vcov_m_est_naive) = names(theta_naive)
-
-
-
-outfile_vcov_naive = paste0(
-  "results/raw-results/vcov_naive_",
-  antibody_type,
-  "_",
-  target,
-  "_",
-  population,
-  "_M",
-  mnum,
-  "_",
-  outfile_wts,
-  ".csv"
+results_naive = inference_DSCAP(
+  data = df,
+  formula_S = formula_S,
+  formula_Y = formula_Y,
+  formula_T = formula_T,
+  formula_CC = formula_CC,
+  target_trial = target_trial,
+  estimate_weights = estimate_weights,
+  alpha = 0.05,
+  B = n_boot,
+  type = "naive",
+  treatment_var = "A",
+  trial_var = "trial",
+  corrected_target_trial = FALSE
 )
-write.csv(vcov_m_est_naive, outfile_vcov_naive, row.names = FALSE)
+
+# Print and save to file the results for each type of estimator separately.
+sink(paste0("results/data-application/tables/DSCAP_estimates_", population, "_", target, "_", outfile_wts, "_", mnum, ".txt"))
+cat("**Doubly Robust Estimator**\n\n")
+print(results_DR); cat("\n\n")
+cat("**IPW Estimator**\n\n")
+print(results_ipw); cat("\n\n")
+cat("**Standardized Estimator**\n\n")
+print(results_st); cat("\n\n")
+cat("**Naive Estimator**\n\n")
+sink()
+
+# Merge the tibbles with estimates and save as an rds file.
+all_results_tbl = bind_rows(
+  results_DR %>% mutate(type = "doubly robust"),
+  results_ipw %>% mutate(type = "ipw"),
+  results_st %>% mutate(type = "standardized"),
+  results_naive %>% mutate(type = "naive")
+)
+saveRDS(all_results_tbl, file = paste0("results/data-application/raw-results/DSCAP_estimates_", population, "_", target, "_", outfile_wts, "_", mnum, ".rds"))
+
+
