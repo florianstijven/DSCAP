@@ -159,7 +159,9 @@ results_DR = inference_DSCAP(
   type = "doubly robust",
   treatment_var = "A",
   trial_var = "trial",
-  corrected_target_trial = FALSE
+  corrected_target_trial = FALSE,
+  parallel = "snow",
+  ncpus = parallel::detectCores() - 1
 )
 
 results_ipw = inference_DSCAP(
@@ -175,7 +177,9 @@ results_ipw = inference_DSCAP(
   type = "ipw",
   treatment_var = "A",
   trial_var = "trial",
-  corrected_target_trial = FALSE
+  corrected_target_trial = FALSE,
+  parallel = "snow",
+  ncpus = parallel::detectCores() - 1
 )
 
 results_st = inference_DSCAP(
@@ -191,7 +195,9 @@ results_st = inference_DSCAP(
   type = "standardized",
   treatment_var = "A",
   trial_var = "trial",
-  corrected_target_trial = FALSE
+  corrected_target_trial = FALSE,
+  parallel = "snow",
+  ncpus = parallel::detectCores() - 1
 )
 
 results_naive = inference_DSCAP(
@@ -207,7 +213,9 @@ results_naive = inference_DSCAP(
   type = "naive",
   treatment_var = "A",
   trial_var = "trial",
-  corrected_target_trial = FALSE
+  corrected_target_trial = FALSE,
+  parallel = "snow",
+  ncpus = parallel::detectCores() - 1
 )
 
 # Determine to which trial each treatment group corresponded.

@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --output=par-%J.out
-#SBATCH --ntasks=1 --cpus-per-task=8 --nodes=1
+#SBATCH --ntasks=1 --cpus-per-task=72 --nodes=1
 #SBATCH --time=10:00:00
 #SBATCH --cluster=wice
 #SBATCH --mail-type=END,FAIL,REQUEUE,STAGE_OUT
@@ -14,4 +14,4 @@ export OMP_NUM_THREADS=1
 
 Rscript -e "renv::restore()"
 
-make application -j 8
+make application

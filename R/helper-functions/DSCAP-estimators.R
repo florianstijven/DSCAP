@@ -147,7 +147,8 @@ inference_DSCAP <- function(data,
                             corrected_target_trial = FALSE,
                             B,
                             stratified_bs = TRUE,
-                            alpha = 0.05) {
+                            alpha = 0.05,
+                            ...) {
   # Estimate the trial-level treatment effects and association measures for the
   # original data.
   estimates_df <- estimate_DSCAP(
@@ -201,7 +202,8 @@ inference_DSCAP <- function(data,
     data = data,
     statistic = boot_fun,
     R = B,
-    strata = strata
+    strata = strata,
+    ...
   )
   # Compute bootstrap CIs and SEs for all estimates in estimates_df.
   estimates_df = estimates_df %>%
