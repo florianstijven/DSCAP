@@ -113,7 +113,8 @@ ma_plot = function(modn = 1, estimate_weights = TRUE, target, truncation, type) 
     ) %>%
     mutate(
       type = ifelse(type == "naive", "Unstandardized", "Standardized"),
-      type = factor(type, levels = c("Unstandardized", "Standardized"))
+      type = factor(type, levels = c("Unstandardized", "Standardized")),
+      surr_type = ifelse(surr_type == "spike", "Binding Ab", "Neutralizing Ab"),
     )
   
   # Limits for the y-axis depend on the settings. The lower limit for the y-axis
