@@ -161,7 +161,7 @@ results_DR = inference_DSCAP(
   trial_var = "trial",
   corrected_target_trial = FALSE,
   parallel = "multicore",
-  ncpus = parallel::detectCores() - 1
+  ncpus = parallel::detectCores() %/% 3
 )
 
 results_ipw = inference_DSCAP(
@@ -179,7 +179,7 @@ results_ipw = inference_DSCAP(
   trial_var = "trial",
   corrected_target_trial = FALSE,
   parallel = "multicore",
-  ncpus = parallel::detectCores() - 1
+  ncpus = parallel::detectCores() %/% 3
 )
 
 results_st = inference_DSCAP(
@@ -197,7 +197,7 @@ results_st = inference_DSCAP(
   trial_var = "trial",
   corrected_target_trial = FALSE,
   parallel = "multicore",
-  ncpus = parallel::detectCores() - 1
+  ncpus = parallel::detectCores() %/% 3
 )
 
 results_naive = inference_DSCAP(
@@ -215,7 +215,7 @@ results_naive = inference_DSCAP(
   trial_var = "trial",
   corrected_target_trial = FALSE,
   parallel = "multicore",
-  ncpus = parallel::detectCores() - 1
+  ncpus = parallel::detectCores() %/% 3
 )
 
 # Determine to which trial each treatment group corresponded.
