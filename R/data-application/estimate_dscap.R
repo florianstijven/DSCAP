@@ -160,7 +160,7 @@ results_DR = inference_DSCAP(
   treatment_var = "A",
   trial_var = "trial",
   corrected_target_trial = FALSE,
-  parallel = "snow",
+  parallel = "multicore",
   ncpus = parallel::detectCores() - 1
 )
 
@@ -178,7 +178,7 @@ results_ipw = inference_DSCAP(
   treatment_var = "A",
   trial_var = "trial",
   corrected_target_trial = FALSE,
-  parallel = "snow",
+  parallel = "multicore",
   ncpus = parallel::detectCores() - 1
 )
 
@@ -196,7 +196,7 @@ results_st = inference_DSCAP(
   treatment_var = "A",
   trial_var = "trial",
   corrected_target_trial = FALSE,
-  parallel = "snow",
+  parallel = "multicore",
   ncpus = parallel::detectCores() - 1
 )
 
@@ -214,7 +214,7 @@ results_naive = inference_DSCAP(
   treatment_var = "A",
   trial_var = "trial",
   corrected_target_trial = FALSE,
-  parallel = "snow",
+  parallel = "multicore",
   ncpus = parallel::detectCores() - 1
 )
 
