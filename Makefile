@@ -73,5 +73,6 @@ results/simulations/raw-results/true_values_tbl.rds: R/simulations/compute_truev
 	Rscript R/simulations/compute_truevalues.R $(n_MC)
 	
 R/simulations/process-simulations.Rout: results/simulations/raw-results/simulations_results_tbl.rds \
-	results/simulations/raw-results/true_values_tbl.rds
+	results/simulations/raw-results/true_values_tbl.rds \
+	R/simulations/process-simulations.R
 	Rscript --verbose R/simulations/process-simulations.R > $@ 2> $@
