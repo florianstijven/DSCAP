@@ -37,13 +37,25 @@ source("R/simulations/parameter_values.R")
 formula_Y = as.formula(Y ~ X1 + X2)
 formula_S = as.formula(S ~ X1 + X2)
 
+# Formulas for misspecified models.
+formula_Y_misspecified = as.formula(Y ~ X1 + I(X2^2))
+formula_S_misspecified = as.formula(S ~ X1 + I(X2^2))
+
 # Define formula for trial participation model given covariates X (but not
 # treatment).
 formula_T = as.formula(trial ~ X1 + X2)
+
+# Formulas for misspecified trial participation model.
+formula_T_misspecified = as.formula(trial ~ X1 + I(X2^2))
+
 # Formula for case-cohort sampling model (i.e., model for probability of being
 # sampled in the case-cohort sampling design given covariates X, treatment A,
 # outcome Y, and trial).
 formula_CC = as.formula(Delta ~ X1 * trial * as.factor(A) * as.factor(Y))
+
+# We will only consider CC sampling from the third scenario.
+dgm_param_tbl <- dgm_param_tbl %>%
+  filter(CC_sampling == FALSE | (setting == "3"))
 
 # If CC sampling is required for the simulations, we set the formula_CC in the
 # corresponding row of the tibble containing the DGP parameters. Otherwise, this
@@ -55,13 +67,40 @@ dgm_param_tbl$formula_CC <- ifelse(
 )
 
 # For the setting "X", we have a different DGP for the different trial's control
-# groups. We need to suuply the `different_placebo_model` argument to
+# groups. We need to supply the `different_placebo_model` argument to
 # `different_placebo_model()` later on to indicate this.
 dgm_param_tbl$different_placebo_model <- ifelse(
   dgm_param_tbl$setting == "X",
   TRUE,
   FALSE
 )
+
+# For scenario 1, we also consider the estimators under misspecified models for
+# the outcome and/or trial participation models. 
+dgm_param_tbl <- dgm_param_tbl %>%
+  mutate(
+    model_O_correct = TRUE,
+    model_T_correct = TRUE
+  ) %>%
+  bind_rows(
+    dgm_param_tbl %>%
+      filter(setting == "1") %>%
+      cross_join(
+        tibble(
+          model_O_correct = c(FALSE, TRUE),
+          model_T_correct = c(TRUE, FALSE)
+        )
+      )
+  )
+
+# Add formulas to the tibble containing the DGP parameters. The formulas depend
+# on whether the models are correctly specified or misspecified.
+dgm_param_tbl <- dgm_param_tbl %>%
+  mutate(
+    formula_Y = ifelse(model_O_correct, list(formula_Y), list(formula_Y_misspecified)),
+    formula_S = ifelse(model_O_correct, list(formula_S), list(formula_S_misspecified)),
+    formula_T = ifelse(model_T_correct, list(formula_T), list(formula_T_misspecified))
+  )
 
 # Helper Functions --------------------------------------------------------
 
@@ -87,6 +126,7 @@ analyze <- function(data,
                     corrected_target_trial) {
   # Analyze the simulated data using the naive, standardization, ipw, and doubly
   # robust estimators.
+  browser()
   inferences_naive_tbl <- inference_DSCAP(
     data = data,
     type = "naive",
@@ -182,6 +222,8 @@ analyze <- function(data,
   #   n_permutations = n_permutations,
   #   estimate_weights = estimate_weights
   # )
+  p_value_permutation_Y <- NA
+  p_value_permutation_S <- NA
   
   p_value_LRT_Y <- asymptotic_LRT(
       data = data,
@@ -253,8 +295,9 @@ simulate_and_analyze <- function(n_trials,
   simulated_data <- generate_simulated_data(
     n_trials = n_trials,
     n_t = n_t,
-    formula_S = formula_S,
-    formula_Y = formula_Y,
+    # Formulas defining the DGP.
+    formula_S = as.formula(S ~ X1 + X2),
+    formula_Y = as.formula(Y ~ X1 + X2),
     gamma = gamma,
     theta = theta,
     zeta = zeta,
@@ -304,12 +347,12 @@ simulations_results_tbl$inferences_tbl = future_pmap(
     zeta = simulations_results_tbl$zeta,
     CC_sampling = simulations_results_tbl$CC_sampling,
     formula_CC = simulations_results_tbl$formula_CC,
-    different_placebo_model = simulations_results_tbl$different_placebo_model
+    different_placebo_model = simulations_results_tbl$different_placebo_model,
+    formula_S = simulations_results_tbl$formula_S,
+    formula_Y = simulations_results_tbl$formula_Y,
+    formula_T = simulations_results_tbl$formula_T
   ),
   .f = simulate_and_analyze,
-  formula_S = formula_S,
-  formula_Y = formula_Y,
-  formula_T = formula_T,
   target_trial = 1,
   estimate_weights = FALSE,
   alpha = 0.05,
@@ -327,7 +370,7 @@ simulations_results_tbl$inferences_tbl = future_pmap(
 # contains one estimate for a given parameter. Hence, the estimates and
 # inferences for a single simulated data set span many rows.
 simulations_results_tbl = simulations_results_tbl %>%
-  select(-theta, -gamma, -zeta) %>%
+  select(-theta, -gamma, -zeta, -formula_S, -formula_Y, -formula_T) %>%
   unnest(inferences_tbl)
 
 
