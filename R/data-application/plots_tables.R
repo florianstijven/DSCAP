@@ -296,15 +296,105 @@ plot_parameters_tbl %>%
 # the full-population 8-trial analysis and truncated-population 6-trial analysis
 # in the main text of the paper.
 sink(paste0(tables_dir, "surrogacy-main-results.txt"))
+cat("**Doubly Robust Estimator --- 8-trial-analysis**\n\n")
 all_results_tbl %>%
   filter(is.na(trial)) %>%
-  filter(
-    target == .env$target,
-  ((truncation == 1) & (modn == 2)) | ((truncation == 0) & (modn == 1))
+  filter(modn == 1, type == "doubly robust") %>%
+  mutate(standardized = paste0(round(estimate, 2), " (", round(CI_lower_bs, 2), ", ", round(CI_upper_bs, 2), ")")) %>%
+  select(measure, standardized, surr_type) %>%
+  left_join(
+    all_results_tbl %>%
+      filter(is.na(trial)) %>%
+      filter(modn == 1, type == "naive") %>%
+      mutate(naive = paste0(round(estimate, 2), " (", round(CI_lower_bs, 2), ", ", round(CI_upper_bs, 2), ")")) %>%
+      select(measure, naive, surr_type),
+    by = c("measure", "surr_type")
   ) %>%
-  mutate(modn = ifelse(modn == 1, "8-trial analysis", "6-trial analysis")) %>%
-  select(modn, type, measure, estimate, CI_lower_bs, CI_upper_bs, surr_type) %>%
-  print(n = 500)
+  select(surr_type, measure, naive, standardized)
+cat("\n\n")
+cat("**Doubly Robust Estimator --- 6-trial-analysis**\n\n")
+all_results_tbl %>%
+  filter(is.na(trial)) %>%
+  filter(modn == 2, type == "doubly robust") %>%
+  mutate(standardized = paste0(round(estimate, 2), " (", round(CI_lower_bs, 2), ", ", round(CI_upper_bs, 2), ")")) %>%
+  select(measure, standardized, surr_type) %>%
+  left_join(
+    all_results_tbl %>%
+      filter(is.na(trial)) %>%
+      filter(modn == 2, type == "naive") %>%
+      mutate(naive = paste0(round(estimate, 2), " (", round(CI_lower_bs, 2), ", ", round(CI_upper_bs, 2), ")")) %>%
+      select(measure, naive, surr_type),
+    by = c("measure", "surr_type")
+  ) %>%
+  select(surr_type, measure, naive, standardized)
+sink()
+
+# Table with summary of results for the appendix, where we present the results
+# for the IPW and standardized estimators for all analyses.
+sink(paste0(tables_dir, "surrogacy-appendix-results.txt"))
+cat("**IPW Estimator --- 8-trial-analysis**\n\n")
+all_results_tbl %>%
+  filter(is.na(trial)) %>%
+  filter(modn == 1, type == "ipw") %>%
+  mutate(ipw = paste0(round(estimate, 2), " (", round(CI_lower_bs, 2), ", ", round(CI_upper_bs, 2), ")")) %>%
+  select(measure, ipw, surr_type) %>%
+  left_join(
+    all_results_tbl %>%
+      filter(is.na(trial)) %>%
+      filter(modn == 1, type == "naive") %>%
+      mutate(naive = paste0(round(estimate, 2), " (", round(CI_lower_bs, 2), ", ", round(CI_upper_bs, 2), ")")) %>%
+      select(measure, naive, surr_type),
+    by = c("measure", "surr_type")
+  ) %>%
+  select(surr_type, measure, naive, ipw)
+cat("\n\n")
+cat("**IPW Estimator --- 6-trial-analysis**\n\n")
+all_results_tbl %>%
+  filter(is.na(trial)) %>%
+  filter(modn == 2, type == "ipw") %>%
+  mutate(ipw = paste0(round(estimate, 2), " (", round(CI_lower_bs, 2), ", ", round(CI_upper_bs, 2), ")")) %>%
+  select(measure, ipw, surr_type) %>%
+  left_join(
+    all_results_tbl %>%
+      filter(is.na(trial)) %>%
+      filter(modn == 2, type == "naive") %>%
+      mutate(naive = paste0(round(estimate, 2), " (", round(CI_lower_bs, 2), ", ", round(CI_upper_bs, 2), ")")) %>%
+      select(measure, naive, surr_type),
+    by = c("measure", "surr_type")
+  ) %>%
+  select(surr_type, measure, naive, ipw)
+cat("\n\n")
+cat("**Standardization Estimator --- 8-trial-analysis**\n\n")
+all_results_tbl %>%
+  filter(is.na(trial)) %>%
+  filter(modn == 1, type == "standardized") %>%
+  mutate(standardized = paste0(round(estimate, 2), " (", round(CI_lower_bs, 2), ", ", round(CI_upper_bs, 2), ")")) %>%
+  select(measure, standardized, surr_type) %>%
+  left_join(
+    all_results_tbl %>%
+      filter(is.na(trial)) %>%
+      filter(modn == 1, type == "naive") %>%
+      mutate(naive = paste0(round(estimate, 2), " (", round(CI_lower_bs, 2), ", ", round(CI_upper_bs, 2), ")")) %>%
+      select(measure, naive, surr_type),
+    by = c("measure", "surr_type")
+  ) %>%
+  select(surr_type, measure, naive, standardized)
+cat("\n\n")
+cat("**Standardization Estimator --- 6-trial-analysis**\n\n")
+all_results_tbl %>%
+  filter(is.na(trial)) %>%
+  filter(modn == 2, type == "standardized") %>%
+  mutate(standardized = paste0(round(estimate, 2), " (", round(CI_lower_bs, 2), ", ", round(CI_upper_bs, 2), ")")) %>%
+  select(measure, standardized, surr_type) %>%
+  left_join(
+    all_results_tbl %>%
+      filter(is.na(trial)) %>%
+      filter(modn == 2, type == "naive") %>%
+      mutate(naive = paste0(round(estimate, 2), " (", round(CI_lower_bs, 2), ", ", round(CI_upper_bs, 2), ")")) %>%
+      select(measure, naive, surr_type),
+    by = c("measure", "surr_type")
+  ) %>%
+  select(surr_type, measure, naive, standardized)
 sink()
 
 # Table with p-values for the LRT p-values based on the asymptotic chi-squared
