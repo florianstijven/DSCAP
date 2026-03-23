@@ -2596,54 +2596,6 @@
       "Maintainer": "Jennifer Bryan <jenny@posit.co>",
       "Repository": "CRAN"
     },
-    "geex": {
-      "Package": "geex",
-      "Version": "1.1.1",
-      "Source": "Repository",
-      "Type": "Package",
-      "Title": "An API for M-Estimation",
-      "Authors@R": "c(person(\"Bradley\", \"Saul\", role = c(\"aut\", \"cre\"), email = \"bradleysaul@gmail.com\"), person(\"Brian\", \"Barkley\", role = c(\"ctb\")))",
-      "Author": "Bradley Saul [aut, cre], Brian Barkley [ctb]",
-      "Maintainer": "Bradley Saul <bradleysaul@gmail.com>",
-      "Description": "Provides a general, flexible framework for estimating parameters and empirical sandwich variance estimator from a set of unbiased estimating equations (i.e., M-estimation in the vein of Stefanski & Boos (2002) <doi:10.1198/000313002753631330>). All examples from Stefanski & Boos (2002) are published in the corresponding Journal of Statistical Software paper \"The Calculus of M-Estimation in R with geex\" by Saul & Hudgens (2020) <doi:10.18637/jss.v092.i02>. Also provides an API to compute finite-sample  variance corrections.",
-      "Depends": [
-        "R (>= 3.3)"
-      ],
-      "Imports": [
-        "Matrix (>= 1.2-6)",
-        "rootSolve (>= 1.6.6)",
-        "numDeriv (>= 2014.2-1)",
-        "lme4 (>= 1.1-12)",
-        "methods (>= 3.3)"
-      ],
-      "Suggests": [
-        "testthat",
-        "knitr",
-        "dplyr",
-        "moments",
-        "sandwich",
-        "inferference",
-        "xtable",
-        "AER",
-        "ICSNP",
-        "MASS",
-        "gee",
-        "saws",
-        "rmarkdown",
-        "geepack",
-        "covr",
-        "mvtnorm"
-      ],
-      "URL": "https://github.com/bsaul/geex, https://bsaul.github.io/geex/",
-      "BugReports": "https://github.com/bsaul/geex/issues",
-      "License": "MIT + file LICENSE",
-      "LazyData": "TRUE",
-      "VignetteBuilder": "knitr",
-      "RoxygenNote": "7.2.1",
-      "Encoding": "UTF-8",
-      "NeedsCompilation": "no",
-      "Repository": "CRAN"
-    },
     "generics": {
       "Package": "generics",
       "Version": "0.1.3",
@@ -5526,28 +5478,6 @@
       "Author": "Bruce Swihart [cre, aut], Jim Lindsey [aut] (Jim created this package, Bruce is maintaining the CRAN version), K. Sikorski [ctb, cph] (Wrote TOMS614/INTHP, https://calgo.acm.org/), F. Stenger [ctb, cph] (Wrote TOMS614/INTHP, https://calgo.acm.org/), J. Schwing [ctb, cph] (Wrote TOMS614/INTHP, https://calgo.acm.org/)",
       "Maintainer": "Bruce Swihart <bruce.swihart@gmail.com>",
       "Repository": "CRAN"
-    },
-    "rootSolve": {
-      "Package": "rootSolve",
-      "Version": "1.8.2.4",
-      "Source": "Repository",
-      "Title": "Nonlinear Root Finding, Equilibrium and Steady-State Analysis of Ordinary Differential Equations",
-      "Authors@R": "c(person(\"Karline\",\"Soetaert\", role = c(\"aut\", \"cre\"),  email = \"karline.soetaert@nioz.nl\"), person(\"Alan C.\",\"Hindmarsh\", role = \"ctb\",  comment = \"files lsodes.f, sparse.f\"), person(\"S.C.\",\"Eisenstat\", role = \"ctb\",  comment = \"file sparse.f\"), person(\"Cleve\",\"Moler\", role = \"ctb\",  comment = \"file dlinpk.f\"), person(\"Jack\",\"Dongarra\", role = \"ctb\",  comment = \"file dlinpk.f\"), person(\"Youcef\", \"Saad\", role = \"ctb\",  comment = \"file dsparsk.f\"))",
-      "Maintainer": "Karline Soetaert <karline.soetaert@nioz.nl>",
-      "Author": "Karline Soetaert [aut, cre], Alan C. Hindmarsh [ctb] (files lsodes.f, sparse.f), S.C. Eisenstat [ctb] (file sparse.f), Cleve Moler [ctb] (file dlinpk.f), Jack Dongarra [ctb] (file dlinpk.f), Youcef Saad [ctb] (file dsparsk.f)",
-      "Depends": [
-        "R (>= 2.01)"
-      ],
-      "Imports": [
-        "stats",
-        "graphics",
-        "grDevices"
-      ],
-      "Description": "Routines to find the root of nonlinear functions, and to perform steady-state and equilibrium analysis of ordinary differential equations (ODE).  Includes routines that: (1) generate gradient and jacobian matrices (full and banded), (2) find roots of non-linear equations by the 'Newton-Raphson' method,  (3) estimate steady-state conditions of a system of (differential) equations in full, banded or sparse form, using the 'Newton-Raphson' method, or by dynamically running, (4) solve the steady-state conditions for uni-and multicomponent 1-D, 2-D, and 3-D partial differential equations, that have been converted to ordinary differential equations by numerical differencing (using the method-of-lines approach). Includes fortran code.",
-      "License": "GPL (>= 2)",
-      "NeedsCompilation": "yes",
-      "Repository": "CRAN",
-      "Encoding": "UTF-8"
     },
     "rpart": {
       "Package": "rpart",

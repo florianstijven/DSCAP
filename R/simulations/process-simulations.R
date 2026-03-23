@@ -44,7 +44,7 @@ simulations_summary_tbl = simulations_results_tbl %>%
   )
 
 error_rates_permutation_tbl = simulations_results_tbl %>%
-  filter(measure %in% c("permutation_LRT_p_value_S", "permutation_LRT_p_value_Y")) %>%
+  filter(measure %in% c("LRT_p_value_S", "LRT_p_value_Y")) %>%
   group_by(setting, n_trials, n_t, CC_sampling, measure) %>%
   summarise(
     type_I_error_rate = mean(estimate < 0.05, na.rm = TRUE)
