@@ -157,25 +157,49 @@ analyze <- function(data,
   
   # Compute permutation p-value for testing the trial exchangeability assumption
   # for control treatment.
-  p_value_permutation_Y <- permutation_LRT(
-    data = data,
-    formula_O = formula_Y,
-    formula_CC = formula_CC,
-    family = binomial(),
-    treatment_var = "A",
-    trial_var = "trial",
-    n_permutations = n_permutations,
-    estimate_weights = estimate_weights
-  )
   
-  p_value_permutation_S <- permutation_LRT(
+  # The permutation test p-values are currently not included because the test is
+  # not valid.
+  
+  # p_value_permutation_Y <- permutation_LRT(
+  #   data = data,
+  #   formula_O = formula_Y,
+  #   formula_CC = formula_CC,
+  #   family = binomial(),
+  #   treatment_var = "A",
+  #   trial_var = "trial",
+  #   n_permutations = n_permutations,
+  #   estimate_weights = estimate_weights
+  # )
+  
+  # p_value_permutation_S <- permutation_LRT(
+  #   data = data,
+  #   formula_O = formula_S,
+  #   formula_CC = formula_CC,
+  #   family = gaussian(),
+  #   treatment_var = "A",
+  #   trial_var = "trial",
+  #   n_permutations = n_permutations,
+  #   estimate_weights = estimate_weights
+  # )
+  
+  p_value_LRT_Y <- asymptotic_LRT(
+      data = data,
+      formula_O = formula_Y,
+      formula_CC = formula_CC,
+      family = binomial(),
+      treatment_var = "A",
+      trial_var = "trial",
+      estimate_weights = estimate_weights
+    )
+  
+  p_value_LRT_S <- asymptotic_LRT(
     data = data,
     formula_O = formula_S,
     formula_CC = formula_CC,
     family = gaussian(),
     treatment_var = "A",
     trial_var = "trial",
-    n_permutations = n_permutations,
     estimate_weights = estimate_weights
   )
   
@@ -185,6 +209,17 @@ analyze <- function(data,
       tibble(
         measure = c("permutation_LRT_p_value_S", "permutation_LRT_p_value_Y"),
         estimate = c(p_value_permutation_S, p_value_permutation_Y),
+        type = NA,
+        treatment = NA,
+        CI_lower_bs = NA,
+        CI_upper_bs = NA,
+        SE = NA
+      )
+    ) %>%
+    bind_rows(
+      tibble(
+        measure = c("LRT_p_value_S", "LRT_p_value_Y"),
+        estimate = c(p_value_LRT_S, p_value_LRT_Y),
         type = NA,
         treatment = NA,
         CI_lower_bs = NA,
@@ -226,7 +261,6 @@ simulate_and_analyze <- function(n_trials,
     CC_sampling = CC_sampling, 
     different_placebo_model = different_placebo_model
   )
-  
   # Analyze data.
   inferences_tbl <- analyze(
     data = simulated_data,

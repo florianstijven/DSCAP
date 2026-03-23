@@ -20,11 +20,11 @@ LRT_statistic <- function(data_subset, formula_O, family) {
   glm_w_trial <-update(glm_null, ~ . * trial)
   # Compute the likelihood ratio test statistic. 
   glm_lr_test = lmtest::lrtest(glm_null, glm_w_trial)
-  
+
   # Extract LRT statistic.
-  lrt_test_statistic <- glm_lr_test[2,4]
+  lrt_test <- c("statistic" = glm_lr_test[2,4], "p-value" = glm_lr_test[2,5])
   
-  return(lrt_test_statistic)
+  return(lrt_test)
 }
 
 
@@ -51,7 +51,7 @@ permutation_LRT <- function(data,
   df_subset = df %>%
     filter(treatment == 0)
   # Compute observed LRT test statistic for the original data.
-  lrt_test_statistic <- LRT_statistic(data_subset = df_subset, formula_O = formula_O, family = family)
+  lrt_test_statistic <- LRT_statistic(data_subset = df_subset, formula_O = formula_O, family = family)["statistic"]
   
   # Initialize vector to store LRT test statistics from the permutations.
   lrt_test_statistic_permuted = rep(NA, n_permutations)
@@ -65,10 +65,39 @@ permutation_LRT <- function(data,
     # Compute LRT test statistic for the permuted data.
     lrt_test_statistic_permuted[i] <- LRT_statistic(data_subset = df_subset,
                                                     formula_O = formula_O,
-                                                    family = family)
+                                                    family = family)["statistic"]
   }
   # Compute the permutation p-value.
   p_value <- mean(lrt_test_statistic_permuted > lrt_test_statistic)
   
   return(p_value)
+}
+
+# Function to compute the LRT p-value based on the chi-squared asymptotic
+# distribution.
+asymptotic_LRT <- function(data,
+                           formula_O,
+                           family,
+                           formula_CC,
+                           treatment_var,
+                           trial_var,
+                           estimate_weights,
+                           CC_weight_var = NULL) {
+  df <- data_preparation(
+    data = data,
+    formula_CC = formula_CC,
+    trial_var = trial_var,
+    treatment_var = treatment_var,
+    target_trial = 1,
+    estimate_weights = estimate_weights,
+    CC_weight_var = CC_weight_var
+  )
+  
+  df_subset = df %>%
+    filter(treatment == 0)
+  
+  # Compute LRT test statistic and p-value based on the chi-squared asymptotic distribution.
+  lrt_test <- LRT_statistic(data_subset = df_subset, formula_O = formula_O, family = family)
+  
+  return(lrt_test["p-value"])
 }
