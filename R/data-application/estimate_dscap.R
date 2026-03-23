@@ -258,4 +258,37 @@ saveRDS(
   )
 )
 
+# Compute LRT statistic and save results.
+
+LRT_Y = asymptotic_LRT(
+  data = df,
+  formula_O = formula_Y,
+  family = binomial(),
+  formula_CC = formula_CC,
+  treatment_var = "A",
+  trial_var = "trial",
+  estimate_weights = estimate_weights,
+  CC_weight_var = NULL
+)
+
+# Merge LRT results in a tibble and save.
+LRT_tbl = tibble(outcome = c("Y"),
+                    p_value = c(LRT_Y))
+saveRDS(
+  LRT_tbl,
+  file = paste0(
+    "results/data-application/raw-results/LRT_",
+    population,
+    "_",
+    target,
+    "_",
+    outfile_wts,
+    "_",
+    mnum,
+    "_",
+    antibody_type,
+    ".rds"
+  )
+)
+
 
