@@ -77,6 +77,27 @@ all_results_tbl = plot_parameters_tbl %>%
 all_results_tbl = all_results_tbl %>%
   mutate(jnj_trial = ifelse(str_detect(trial, "J&J"), TRUE, FALSE))
 
+# Read in p-values for the LRTs.
+lrt_pvalues_tbl = plot_parameters_tbl %>%
+  rowwise(everything()) %>%
+  reframe(read_rds(
+    file = paste0(
+      raw_results_dir,
+      "LRT_",
+      ifelse(truncation, "truncated", "full"),
+      "_",
+      target,
+      "_",
+      ifelse(estimate_weights, "estwts", "kwnwts"),
+      "_",
+      modn,
+      "_",
+      surr_type
+      ,
+      ".rds"
+    )
+  ))
+
 # Plotting -------------------------------------------------------------
 
 # Function to make MA plots.
@@ -284,4 +305,10 @@ all_results_tbl %>%
   mutate(modn = ifelse(modn == 1, "8-trial analysis", "6-trial analysis")) %>%
   select(modn, type, measure, estimate, CI_lower_bs, CI_upper_bs, surr_type) %>%
   print(n = 500)
+sink()
+
+# Table with p-values for the LRT p-values based on the asymptotic chi-squared
+# distribution.
+sink(paste0(tables_dir, "lrt-pvalues.txt"))
+lrt_pvalues_tbl
 sink()

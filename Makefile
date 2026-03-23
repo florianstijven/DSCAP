@@ -6,7 +6,7 @@ N_MC = 100
 # Number of MC IPD replicates (per trial) to approximate true values.
 n_MC = 1e6
 # Number of bootstrap replications and replications for the permutation test in
-# data application. [currently not used]
+# data application.
 B = 1000
 
 # Rscripts that contain helper functions.
