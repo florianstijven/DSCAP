@@ -126,7 +126,6 @@ analyze <- function(data,
                     corrected_target_trial) {
   # Analyze the simulated data using the naive, standardization, ipw, and doubly
   # robust estimators.
-  browser()
   inferences_naive_tbl <- inference_DSCAP(
     data = data,
     type = "naive",
@@ -224,7 +223,7 @@ analyze <- function(data,
   # )
   p_value_permutation_Y <- NA
   p_value_permutation_S <- NA
-  
+
   p_value_LRT_Y <- asymptotic_LRT(
       data = data,
       formula_O = formula_Y,

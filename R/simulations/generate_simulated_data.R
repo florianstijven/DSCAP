@@ -59,7 +59,7 @@ generate_simulated_data <- function(
     # parameters for the active treatment groups.
     for (t in 1:n_trials) {
       for (a in c(0, t)) {
-        idx <- which(sample_df$A == a, sample_df$trial == t)
+        idx <- which(sample_df$A == a & sample_df$trial == t)
         
         param_row <- ifelse(a == 0, t, t + n_trials)
         
