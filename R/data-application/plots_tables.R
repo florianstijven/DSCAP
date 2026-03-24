@@ -141,7 +141,7 @@ ma_plot = function(modn = 1, estimate_weights = TRUE, target, truncation, type) 
   # Limits for the y-axis depend on the settings. The lower limit for the y-axis
   # is set to a negative value in the 8-trial analyses because the standardized
   # estimates may be negative there. 
-  if (modn == 1) y_lims = c(-0.5, 1) else y_lims = c(0, 1)
+  if (modn == 1) y_lims = c(-1.5, 1.05) else y_lims = c(-1.5, 1.05)
   # Plot for binding Ab.
   ma_ggplot = plotting_data %>%
     ggplot(aes(
@@ -166,7 +166,7 @@ ma_plot = function(modn = 1, estimate_weights = TRUE, target, truncation, type) 
                color = "lightgrey") +
     # ylim(0, 1) + 
     coord_cartesian(ylim = y_lims,
-                    xlim = c(0, 3)) +
+                    xlim = c(-0.5, 3)) +
     scale_shape_manual(
       name = "Trial",
       breaks = trials_chr,
