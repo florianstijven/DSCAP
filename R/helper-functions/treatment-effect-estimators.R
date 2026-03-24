@@ -126,8 +126,7 @@ standardization_estimator <- function(data,
   # relationships between covariates and outcomes across strata. The models for
   # S are fit only among subjects with `Delta` == 1 and using the case-cohort
   # weights `CC_weight` if case-cohort sampling is used.
-  outcome_model_fits_df <- fit_outcome_models(df)
-  
+  outcome_model_fits_df <- fit_outcome_models(df, formula_Y, formula_S)
   
   # For each subject in the target trial, we predict the outcome using the model
   # estimated in any of the other trials/treatments. For each regression model
@@ -437,7 +436,7 @@ trt_effects <- function(means_df, by_trial) {
 # Function to fit the outcome models needed in the standardization and
 # doubly-robust estimators. Note that the `df` argument should be a data frame
 # returned by `data_preparation()`.
-fit_outcome_models <- function(df) {
+fit_outcome_models <- function(df, formula_Y, formula_S) {
   # Fit the outcome models for the clinical (Y) and surrogate (S) endpoints.
   # Separate models are fit by `stratum_var` (e.g., trial) to allow for flexible
   # differences in the relationships between covariates and outcomes across
@@ -528,6 +527,7 @@ compute_ipw_weights <- function(df, formula_T, target_trial) {
   # Estimate model for trial participation given X. The linear predictor of this
   # model is given in `formula_T`.
   trial_participation_model_fit <- nnet::multinom(formula_T, df)
+
   # Compute the predicted probabilities of trial participation for each subject
   # and add them to df_ipw.
   df_weight_helper <- df_weight_helper %>%
