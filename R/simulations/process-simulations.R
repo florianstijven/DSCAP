@@ -508,10 +508,78 @@ simulations_summary_tbl %>%
   print(n = 500)
 sink()
 
+# Print the simulations results in a formatted tables used in the main text.
+sink(file = paste0(tables_dir, "formatted-simulation-results-summary.txt"))
+# For the naive estimator, we only need on column with the bias. For the other
+# standardized estimators, we need a column with the bias and a column with the
+# coverage.
+cat("** Simulations results for scenarios 1--4 with correctly specified models. **\n\n")
+simulations_summary_tbl %>%
+  filter(measure %in% c("cor_s_est", "cor_p_est", "beta_est")) %>%
+  filter(model_O_correct == TRUE, model_T_correct == TRUE, setting != "X") %>%
+  select(setting,
+         n_trials,
+         n_t,
+         CC_sampling,
+         measure,
+         type,
+         mean_bias,
+         coverage) %>%
+  pivot_wider(names_from = "type",
+              values_from = c("mean_bias", "coverage")) %>%
+  arrange(setting, measure, n_trials, n_t) %>%
+  ungroup() %>%
+  select(-treatment, -model_O_correct, -n_trials, -CC_sampling) %>%
+  select(
+    setting,
+    n_t,
+    measure,
+    mean_bias_naive,
+    `mean_bias_doubly robust`,
+    `coverage_doubly robust`,
+    `mean_bias_ipw`,
+    `coverage_ipw`,
+    `mean_bias_standardization`,
+    `coverage_standardization`
+  ) %>%
+  # Round the numeric columns to 3 decimal places for better formatting.
+  mutate(across(where(is.numeric), ~ round(., 3))) %>%
+  print(n = 500)
+cat("\n\n** Simulations results for scenario 1 with misspecified models. **\n\n")
+simulations_summary_tbl %>%
+  filter(measure %in% c("cor_s_est", "cor_p_est", "beta_est")) %>%
+  filter(setting == "1") %>%
+  select(setting, n_trials, n_t, CC_sampling, measure, type, model_O_correct, model_T_correct, mean_bias, coverage) %>%
+  pivot_wider(names_from = "type", values_from = c("mean_bias", "coverage")) %>%
+  arrange(setting, measure, n_trials, n_t) %>%
+  ungroup() %>%
+  select(-treatment, -n_trials, -CC_sampling) %>%
+  select(
+    setting,
+    n_t,
+    measure,
+    model_O_correct,
+    model_T_correct,
+    mean_bias_naive,
+    `mean_bias_doubly robust`,
+    `coverage_doubly robust`,
+    `mean_bias_ipw`,
+    `coverage_ipw`,
+    `mean_bias_standardization`,
+    `coverage_standardization`
+  ) %>%
+  # Round the numeric columns to 3 decimal places for better formatting.
+  mutate(across(where(is.numeric), ~ round(., 3))) %>%
+  arrange(-model_T_correct,-model_O_correct) %>%
+  print(n = 500)
+sink()
+
+
 
 # Print the error rates for the LRT.
 sink(file = paste0(tables_dir, "LRT-results.txt"))
 error_rates_LRT_tbl %>%
+  pivot_wider(names_from = "measure", values_from = "type_I_error_rate") %>%
   print(n = 500)
 sink()
 
