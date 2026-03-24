@@ -242,7 +242,7 @@ DR_estimator <- function(data,
   # relationships between covariates and outcomes across strata. The models for
   # S are fit only among subjects with `Delta` == 1 and using the case-cohort
   # weights `CC_weight` if case-cohort sampling is used.
-  outcome_model_fits_df <- fit_outcome_models(df)
+  outcome_model_fits_df <- fit_outcome_models(df, formula_Y, formula_S)
   
   
   # For each subject in the target trial, we predict the outcome using the model
