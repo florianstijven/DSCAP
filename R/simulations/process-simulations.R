@@ -32,7 +32,7 @@ simulations_results_tbl <- simulations_results_tbl %>%
 # Compute summaries from the simulation results
 simulations_summary_tbl = simulations_results_tbl %>%
   filter(measure != "permutation_LRT_p_value") %>%
-  group_by(setting, n_trials, n_t, CC_sampling, measure, type, treatment) %>%
+  group_by(setting, n_trials, n_t, CC_sampling, measure, type, treatment, model_O_correct, model_T_correct) %>%
   summarise(
     coverage = mean((estimand >= CI_lower_bs) &
                       (estimand <= CI_upper_bs), na.rm = TRUE),
@@ -43,12 +43,33 @@ simulations_summary_tbl = simulations_results_tbl %>%
     MSE = mean((estimand - estimate)^2, na.rm = TRUE)
   )
 
-error_rates_permutation_tbl = simulations_results_tbl %>%
-  filter(measure %in% c("permutation_LRT_p_value_S", "permutation_LRT_p_value_Y")) %>%
-  group_by(setting, n_trials, n_t, CC_sampling, measure) %>%
-  summarise(
-    type_I_error_rate = mean(estimate < 0.05, na.rm = TRUE)
+# We can drop the entries for the IPW and standardization estimators when the
+# model on which the estimator does not depend is misspecified. For example, the
+# IPW estimator does not depend on the model for the outcome, so we can drop the
+# entries for the IPW estimator when the outcome model is misspecified. 
+simulations_summary_tbl = simulations_summary_tbl %>%
+  filter(
+    !(type == "ipw" & model_O_correct == FALSE),
+    !(type == "standardization" & model_T_correct == FALSE),
+    !(type == "naive" & (model_O_correct == FALSE | model_T_correct == FALSE))
   )
+
+# We rename the scenarios. Scenarios 1--3 without CC sampling and correctly
+# specified models correspond to the main scenarios. Scenarios 3 with CC is
+# renamed to `3 (CC)`. 
+simulations_summary_tbl = simulations_summary_tbl %>%
+  mutate(setting = case_when(
+    setting == "3" & CC_sampling == TRUE ~ "3 (CC)",
+    TRUE ~ as.character(setting)
+  ))
+
+error_rates_LRT_tbl = simulations_results_tbl %>%
+  filter(measure %in% c("LRT_p_value_S", "LRT_p_value_Y"),
+         # We only consider the LRT for correctly specified models.
+         model_O_correct,
+         model_T_correct) %>%
+  group_by(setting, n_trials, n_t, CC_sampling, measure) %>%
+  summarise(type_I_error_rate = mean(estimate < 0.05, na.rm = TRUE))
 
 # Summary of the Simulation Results ---------------------------------------
 
@@ -90,15 +111,18 @@ ggsave(
 
 # Function that plots the bias of the estimators for the DSCAPs with the
 # following options: (i) which DSCAP to plot (cor_s_est, cor_p_est, or
-# beta_est), (ii) whether to plot the mean or median bias, (iii) whether to plot
-# the results under case-cohort sampling.
-plot_bias <- function(measure_var, bias_type = "mean", include_cc = TRUE) {
+# beta_est), (ii) whether to plot the mean or median bias, and (iii) whether to
+# plot the results under misspecification (only setting 1).
+plot_bias <- function(measure_var, bias_type = "mean", misspecification = FALSE) {
   data <- simulations_summary_tbl %>%
     filter(measure %in% measure_var,
            setting != "X")
-
-
-  data <- data %>% filter(CC_sampling == include_cc)
+  
+   if (misspecification) {
+    data <- data %>% filter(setting == "1")
+  } else {
+    data <- data %>% filter(model_O_correct == TRUE, model_T_correct == TRUE)
+  }
 
 
   bias_col <- if (bias_type == "mean") "mean_bias" else "median_bias"
@@ -110,40 +134,80 @@ plot_bias <- function(measure_var, bias_type = "mean", include_cc = TRUE) {
   )
   
   # Create setting labeller
-  setting_labeller <- as_labeller(c("1" = "Setting 1", "2" = "Setting 2", "3" = "Setting 3"))
+  setting_labeller <- as_labeller(c("1" = "Setting 1", "2" = "Setting 2", "3" = "Setting 3", "3 (CC)" = "Setting 3 (CC)"))
+
+  # We need custom labels for the misspecified results.
+   if (misspecification) {
+     data$misspecification_labels = case_when(
+       data$model_O_correct == FALSE & data$model_T_correct == FALSE ~ "O and T misspecified",
+       data$model_O_correct == FALSE & data$model_T_correct == TRUE ~ "O misspecified",
+       data$model_O_correct == TRUE & data$model_T_correct == FALSE ~ "T misspecified",
+       TRUE ~ "Both correct"
+     )
+   }
   
-  data %>%
-    mutate(measure = factor(measure, 
-                            levels = names(measure_labels),
-                            labels = unname(measure_labels))) %>%
-    ggplot(aes(
-      x = n_t,
-      y = .data[[bias_col]],
-      color = type,
-      shape = type
-    )) +
+  if (misspecification) {
+    ggplot_temp = data %>%
+      mutate(measure = factor(measure, 
+                              levels = names(measure_labels),
+                              labels = unname(measure_labels))) %>%
+      ggplot(aes(
+        x = measure,
+        y = .data[[bias_col]],
+        color = type,
+        shape = type
+      )) +
+      scale_x_discrete(labels = function(x) parse(text = x)) +
+      facet_grid(. ~ misspecification_labels, scales = "free_y")
+  } else {
+    ggplot_temp = data %>%
+      mutate(measure = factor(measure, 
+                              levels = names(measure_labels),
+                              labels = unname(measure_labels))) %>%
+      ggplot(aes(
+        x = n_t,
+        y = .data[[bias_col]],
+        color = type,
+        shape = type
+      )) +
+      scale_x_continuous(name = "Number of Subjects per Trial (thousands)", labels = function(x) x/1000) +
+      facet_grid(measure ~ setting, labeller = labeller(measure = label_parsed, setting = setting_labeller), scales = "free_y")
+  }
+  
+  ggplot_temp = ggplot_temp +
     geom_point(position = position_dodge(width = 0.1)) +
     geom_abline(intercept = 0, slope = 0) +
     scale_y_continuous(name = paste(str_to_title(bias_type), "Bias")) +
-    scale_x_continuous(name = "Number of Subjects per Trial (thousands)", labels = function(x) x/1000) +
     scale_color_discrete(name = "Estimator") +
     scale_shape_discrete(name = "Estimator") +
-    facet_grid(measure ~ setting, labeller = labeller(measure = label_parsed, setting = setting_labeller), scales = "free_y") +
     theme(legend.position = "bottom", legend.box = "vertical", legend.spacing.y = unit(0, "cm"))
+  
+  return(ggplot_temp)
 }
 
 # Plot the bias across different settings.
 bias_plots <- tibble(
   measure = list(c("cor_s_est", "cor_p_est", "beta_est")),
-  plot_mean_cc = map(measure, ~plot_bias(.x, bias_type = "mean", include_cc = TRUE)),
-  plot_mean = map(measure, ~plot_bias(.x, bias_type = "mean", include_cc = FALSE)),
-  plot_median_cc = map(measure, ~plot_bias(.x, bias_type = "median", include_cc = TRUE)),
-  plot_median = map(measure, ~plot_bias(.x, bias_type = "median", include_cc = FALSE))
+  plot_mean_misspecification = map(measure, ~plot_bias(.x, bias_type = "mean", misspecification = TRUE)),
+  plot_median_misspecification = map(measure, ~plot_bias(.x, bias_type = "median", misspecification = TRUE)),
+  plot_mean = map(measure, ~plot_bias(.x, bias_type = "mean", misspecification = FALSE)),
+  plot_median = map(measure, ~plot_bias(.x, bias_type = "median", misspecification = FALSE))
 )
 
-walk2(bias_plots$measure, bias_plots$plot_mean_cc, ~ggsave(
+walk2(bias_plots$measure, bias_plots$plot_mean_misspecification, ~ggsave(
   plot = .y,
-  filename = paste0("bias-mean-case-cohort-", paste(.x, collapse = "-"), ".pdf"),
+  filename = paste0("bias-mean-misspecification-", paste(.x, collapse = "-"), ".pdf"),
+  path = figures_dir,
+  height = double_height,
+  width = double_width,
+  dpi = res,
+  device = "pdf",
+  units = "cm"
+))
+
+walk2(bias_plots$measure, bias_plots$plot_median_misspecification, ~ggsave(
+  plot = .y,
+  filename = paste0("bias-median-misspecification-", paste(.x, collapse = "-"), ".pdf"),
   path = figures_dir,
   height = double_height,
   width = double_width,
@@ -155,17 +219,6 @@ walk2(bias_plots$measure, bias_plots$plot_mean_cc, ~ggsave(
 walk2(bias_plots$measure, bias_plots$plot_mean, ~ggsave(
   plot = .y,
   filename = paste0("bias-mean-", paste(.x, collapse = "-"), ".pdf"),
-  path = figures_dir,
-  height = double_height,
-  width = double_width,
-  dpi = res,
-  device = "pdf",
-  units = "cm"
-))
-
-walk2(bias_plots$measure, bias_plots$plot_median_cc, ~ggsave(
-  plot = .y,
-  filename = paste0("bias-median-case-cohort-", paste(.x, collapse = "-"), ".pdf"),
   path = figures_dir,
   height = double_height,
   width = double_width,
@@ -190,16 +243,17 @@ walk2(bias_plots$measure, bias_plots$plot_median, ~ggsave(
 # Function that plots the MSE of the estimators for the DSCAPs with the
 # following options: (i) which DSCAP to plot (cor_s_est, cor_p_est, or
 # beta_est), (ii) whether to plot the results under case-cohort sampling.
-plot_mse <- function(measure_var, include_cc = TRUE) {
+plot_mse <- function(measure_var, bias_type = "mean", misspecification = FALSE) {
   data <- simulations_summary_tbl %>%
     filter(measure %in% measure_var,
            setting != "X")
   
-  if (include_cc) {
-    data <- data %>% filter(CC_sampling == TRUE)
+  if (misspecification) {
+    data <- data %>% filter(setting == "1")
   } else {
-    data <- data %>% filter(CC_sampling == FALSE)
+    data <- data %>% filter(model_O_correct == TRUE, model_T_correct == TRUE)
   }
+  
   
   # Create measure labels as character strings to be parsed
   measure_labels <- c(
@@ -209,37 +263,67 @@ plot_mse <- function(measure_var, include_cc = TRUE) {
   )
   
   # Create setting labeller
-  setting_labeller <- as_labeller(c("1" = "Setting 1", "2" = "Setting 2", "3" = "Setting 3"))
+  setting_labeller <- as_labeller(c("1" = "Setting 1", "2" = "Setting 2", "3" = "Setting 3", "3 (CC)" = "Setting 3 (CC)"))
   
-  data %>%
-    mutate(measure = factor(measure,
-                            levels = names(measure_labels),
-                            labels = unname(measure_labels))) %>%
-    ggplot(aes(
-      x = n_t,
-      y = MSE,
-      color = type,
-      shape = type
-    )) +
+  # We need custom labels for the misspecified results.
+  if (misspecification) {
+    data$misspecification_labels = case_when(
+      data$model_O_correct == FALSE & data$model_T_correct == FALSE ~ "O and T misspecified",
+      data$model_O_correct == FALSE & data$model_T_correct == TRUE ~ "O misspecified",
+      data$model_O_correct == TRUE & data$model_T_correct == FALSE ~ "T misspecified",
+      TRUE ~ "Both correct"
+    )
+  }
+  
+  if (misspecification) {
+    ggplot_temp = data %>%
+      mutate(measure = factor(measure, 
+                              levels = names(measure_labels),
+                              labels = unname(measure_labels))) %>%
+      ggplot(aes(
+        x = measure,
+        y = MSE,
+        color = type,
+        shape = type
+      )) +
+      scale_x_discrete(labels = function(x) parse(text = x)) +
+      facet_grid(. ~ misspecification_labels, scales = "free_y")
+  } else {
+    ggplot_temp = data %>%
+      mutate(measure = factor(measure, 
+                              levels = names(measure_labels),
+                              labels = unname(measure_labels))) %>%
+      ggplot(aes(
+        x = n_t,
+        y = MSE,
+        color = type,
+        shape = type
+      )) +
+      scale_x_continuous(name = "Number of Subjects per Trial (thousands)", labels = function(x) x/1000) +
+      facet_grid(measure ~ setting, labeller = labeller(measure = label_parsed, setting = setting_labeller), scales = "free_y")
+  }
+  
+  ggplot_temp = ggplot_temp +
     geom_point(position = position_dodge(width = 0.1)) +
-    scale_y_continuous(name = "MSE", transform = "log10") +
-    scale_x_continuous(name = "Number of Subjects per Trial (thousands)", labels = function(x) x/1000) +
+    geom_abline(intercept = 0, slope = 0) +
+    scale_y_continuous(name = "MSE") +
     scale_color_discrete(name = "Estimator") +
     scale_shape_discrete(name = "Estimator") +
-    facet_grid(measure ~ setting, scales = "free_y", labeller = labeller(measure = label_parsed, setting = setting_labeller)) +
     theme(legend.position = "bottom", legend.box = "vertical", legend.spacing.y = unit(0, "cm"))
+  
+  return(ggplot_temp)
 }
 
 # Plot the MSE across different settings.
 mse_plots <- tibble(
   measure = list(c("cor_s_est", "cor_p_est", "beta_est")),
-  plot_cc = map(measure, ~plot_mse(.x, include_cc = TRUE)),
-  plot_no_cc = map(measure, ~plot_mse(.x, include_cc = FALSE))
+  plot = map(measure, ~plot_mse(.x, misspecification = FALSE)),
+  plot_misspecification = map(measure, ~plot_mse(.x, misspecification = TRUE))
 )
 
-walk2(mse_plots$measure, mse_plots$plot_cc, ~ggsave(
+walk2(mse_plots$measure, mse_plots$plot_misspecification, ~ggsave(
   plot = .y,
-  filename = paste0("mse-case-cohort-", paste(.x, collapse = "-"), ".pdf"),
+  filename = paste0("mse-misspecification-", paste(.x, collapse = "-"), ".pdf"),
   path = figures_dir,
   height = double_height,
   width = double_width,
@@ -248,7 +332,7 @@ walk2(mse_plots$measure, mse_plots$plot_cc, ~ggsave(
   units = "cm"
 ))
 
-walk2(mse_plots$measure, mse_plots$plot_no_cc, ~ggsave(
+walk2(mse_plots$measure, mse_plots$plot, ~ggsave(
   plot = .y,
   filename = paste0("mse-", paste(.x, collapse = "-"), ".pdf"),
   path = figures_dir,
@@ -267,7 +351,7 @@ walk2(mse_plots$measure, mse_plots$plot_no_cc, ~ggsave(
 # Function that plots the coverage of the confidence intervals for the DSCAPs 
 # with the following options: (i) which DSCAP to plot (cor_s_est, cor_p_est, or
 # beta_est), (ii) whether to plot the results under case-cohort sampling.
-plot_coverage <- function(measure_var, include_cc = TRUE) {
+plot_coverage <- function(measure_var, misspecification = FALSE) {
   coverage_limits = c(0.65, 1)
   
   data <- simulations_summary_tbl %>%
@@ -276,8 +360,12 @@ plot_coverage <- function(measure_var, include_cc = TRUE) {
            setting != "X",
            type != "naive")
   
-data <- data %>% filter(CC_sampling == include_cc)
-
+  if (misspecification) {
+    data <- data %>% filter(setting == "1")
+  } else {
+    data <- data %>% filter(model_O_correct == TRUE, model_T_correct == TRUE)
+  }
+  
   
   # Create measure labels as character strings to be parsed
   measure_labels <- c(
@@ -287,38 +375,76 @@ data <- data %>% filter(CC_sampling == include_cc)
   )
   
   # Create setting labeller
-  setting_labeller <- as_labeller(c("1" = "Setting 1", "2" = "Setting 2", "3" = "Setting 3"))
+  setting_labeller <- as_labeller(c("1" = "Setting 1", "2" = "Setting 2", "3" = "Setting 3", "3 (CC)" = "Setting 3 (CC)"))
   
-  data %>%
-    mutate(measure = factor(measure,
-                            levels = names(measure_labels),
-                            labels = unname(measure_labels))) %>%
-    ggplot(aes(
-      x = n_t,
-      y = coverage,
-      color = type,
-      shape = type
-    )) +
+  # We need custom labels for the misspecified results.
+  if (misspecification) {
+    data$misspecification_labels = case_when(
+      data$model_O_correct == FALSE & data$model_T_correct == FALSE ~ "O and T misspecified",
+      data$model_O_correct == FALSE & data$model_T_correct == TRUE ~ "O misspecified",
+      data$model_O_correct == TRUE & data$model_T_correct == FALSE ~ "T misspecified",
+      TRUE ~ "Both correct"
+    )
+  }
+  
+  if (misspecification) {
+    data$misspecification_labels = case_when(
+      data$model_O_correct == FALSE & data$model_T_correct == FALSE ~ "O and T misspecified",
+      data$model_O_correct == FALSE & data$model_T_correct == TRUE ~ "O misspecified",
+      data$model_O_correct == TRUE & data$model_T_correct == FALSE ~ "T misspecified",
+      TRUE ~ "Both correct"
+    )
+  }
+  
+  if (misspecification) {
+    ggplot_temp = data %>%
+      mutate(measure = factor(measure, 
+                              levels = names(measure_labels),
+                              labels = unname(measure_labels))) %>%
+      ggplot(aes(
+        x = measure,
+        y = coverage,
+        color = type,
+        shape = type
+      )) +
+      scale_x_discrete(labels = function(x) parse(text = x)) +
+      facet_grid(. ~ misspecification_labels, scales = "free_y")
+  } else {
+    ggplot_temp = data %>%
+      mutate(measure = factor(measure, 
+                              levels = names(measure_labels),
+                              labels = unname(measure_labels))) %>%
+      ggplot(aes(
+        x = n_t,
+        y = coverage,
+        color = type,
+        shape = type
+      )) +
+      scale_x_continuous(name = "Number of Subjects per Trial (thousands)", labels = function(x) x/1000) +
+      facet_grid(measure ~ setting, labeller = labeller(measure = label_parsed, setting = setting_labeller), scales = "free_y")
+  }
+  
+  ggplot_temp = ggplot_temp +
     geom_point(position = position_dodge(width = 0.1)) +
     geom_abline(intercept = 0.95, slope = 0) +
     scale_y_continuous(name = "Coverage", limits = coverage_limits) +
     scale_color_discrete(name = "Estimator", drop = FALSE, breaks = unique(data$type)) +
-    scale_x_continuous(name = "Number of Subjects per Trial (thousands)", labels = function(x) x/1000) +
     scale_shape_discrete(name = "Estimator", drop = FALSE, breaks = unique(data$type)) +
-    facet_grid(measure ~ setting, scales = "free_y", labeller = labeller(measure = label_parsed, setting = setting_labeller)) +
     theme(legend.position = "bottom", legend.box = "vertical", legend.spacing.y = unit(0, "cm"))
+  
+  return(ggplot_temp)
 }
 
 # Plot the coverage across different settings.
 coverage_plots <- tibble(
   measure = list(c("cor_s_est", "cor_p_est", "beta_est")),
-  plot_cc = map(measure, ~plot_coverage(.x, include_cc = TRUE)),
-  plot_no_cc = map(measure, ~plot_coverage(.x, include_cc = FALSE))
+  plot_misspecification = map(measure, ~plot_coverage(.x, misspecification = TRUE)),
+  plot = map(measure, ~plot_coverage(.x, misspecification = FALSE))
 )
 
-walk2(coverage_plots$measure, coverage_plots$plot_cc, ~ggsave(
+walk2(coverage_plots$measure, coverage_plots$plot_misspecification, ~ggsave(
   plot = .y,
-  filename = paste0("coverage-case-cohort-", paste(.x, collapse = "-"), ".pdf"),
+  filename = paste0("coverage-misspecification-", paste(.x, collapse = "-"), ".pdf"),
   path = figures_dir,
   height = double_height,
   width = double_width,
@@ -327,7 +453,7 @@ walk2(coverage_plots$measure, coverage_plots$plot_cc, ~ggsave(
   units = "cm"
 ))
 
-walk2(coverage_plots$measure, coverage_plots$plot_no_cc, ~ggsave(
+walk2(coverage_plots$measure, coverage_plots$plot, ~ggsave(
   plot = .y,
   filename = paste0("coverage-", paste(.x, collapse = "-"), ".pdf"),
   path = figures_dir,
@@ -374,29 +500,18 @@ sink()
 # Print the performance measures for the estimators including trial-level
 # standardized effects and DSCAPs.
 
-# With case-cohort sampling
-sink(file = paste0(tables_dir, "simulation-results-summary-case-cohort.txt"))
-simulations_summary_tbl %>%
-  filter(measure %in% c("cor_s_est", "cor_p_est", "beta_est"),
-         CC_sampling == TRUE) %>%
-  select(-treatment) %>%
-  arrange(setting, measure, n_trials, n_t) %>%
-  print(n = 500)
-sink()
-
-# Without case-cohort sampling
 sink(file = paste0(tables_dir, "simulation-results-summary.txt"))
 simulations_summary_tbl %>%
-  filter(measure %in% c("cor_s_est", "cor_p_est", "beta_est"),
-         CC_sampling == FALSE) %>%
-  select(-treatment) %>%
+  filter(measure %in% c("cor_s_est", "cor_p_est", "beta_est")) %>%
   arrange(setting, measure, n_trials, n_t) %>%
+  ungroup() %>%
   print(n = 500)
 sink()
 
-# Print the error rates for the permutation LRT. 
+
+# Print the error rates for the LRT.
 sink(file = paste0(tables_dir, "LRT-results.txt"))
-error_rates_permutation_tbl %>%
+error_rates_LRT_tbl %>%
   print(n = 500)
 sink()
 

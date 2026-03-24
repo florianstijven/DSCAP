@@ -1,10 +1,12 @@
-# Number of bootstrap replications and replications for the permutation test in the simulations.
-B_sim = 100
+# Number of bootstrap replications and replications for the permutation test in 
+# the simulations.
+B_sim = 200
 # Number of MC replications for the simulations 
-N_MC = 100
+N_MC = 1000
 # Number of MC IPD replicates (per trial) to approximate true values.
 n_MC = 1e6
-# Number of bootstrap replications and replications for the permutation test in data application.
+# Number of bootstrap replications and replications for the permutation test in
+# data application.
 B = 1000
 
 # Rscripts that contain helper functions.
@@ -71,5 +73,6 @@ results/simulations/raw-results/true_values_tbl.rds: R/simulations/compute_truev
 	Rscript R/simulations/compute_truevalues.R $(n_MC)
 	
 R/simulations/process-simulations.Rout: results/simulations/raw-results/simulations_results_tbl.rds \
-	results/simulations/raw-results/true_values_tbl.rds
+	results/simulations/raw-results/true_values_tbl.rds \
+	R/simulations/process-simulations.R
 	Rscript --verbose R/simulations/process-simulations.R > $@ 2> $@
