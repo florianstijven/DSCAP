@@ -50,27 +50,27 @@ permutation_LRT <- function(data,
   
   df_subset = df %>%
     filter(treatment == 0)
-  # Compute observed LRT test statistic for the original data.
-  lrt_test_statistic <- LRT_statistic(data_subset = df_subset, formula_O = formula_O, family = family)["statistic"]
-  
-  # Initialize vector to store LRT test statistics from the permutations.
-  lrt_test_statistic_permuted = rep(NA, n_permutations)
-  # Vector of trial labels to permute.
-  trial_vec = df_subset$trial
-  # Permute the data `n_permutations` times, and compute the LRT test statistic
-  # for each permutation.
-  for (i in 1:n_permutations) {
-    # Permute trial labels.
-    df_subset$trial <- sample(trial_vec, replace = FALSE)
-    # Compute LRT test statistic for the permuted data.
-    lrt_test_statistic_permuted[i] <- LRT_statistic(data_subset = df_subset,
-                                                    formula_O = formula_O,
-                                                    family = family)["statistic"]
-  }
-  # Compute the permutation p-value.
-  p_value <- mean(lrt_test_statistic_permuted > lrt_test_statistic)
+  # Compute a permutation p-value based on the CCI package.
+  perm_test_object = CCI::perm.test(
+    formula = add_condition(formula_O, trial),
+    data = df_subset,
+    nperm = n_permutations
+  )
+  p_value <- perm_test_object$p.value
   
   return(p_value)
+}
+
+add_condition <- function(f, new_var) {
+  # Extract LHS and RHS
+  lhs <- f[[2]]
+  rhs <- f[[3]]
+  
+  # Build new RHS: new_var | old_rhs
+  new_rhs <- call("|", substitute(new_var), rhs)
+  
+  # Reconstruct formula
+  as.formula(call("~", lhs, new_rhs), env = environment(f))
 }
 
 # Function to compute the LRT p-value based on the chi-squared asymptotic

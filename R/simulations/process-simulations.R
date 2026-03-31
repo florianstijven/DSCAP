@@ -64,7 +64,7 @@ simulations_summary_tbl = simulations_summary_tbl %>%
   ))
 
 error_rates_LRT_tbl = simulations_results_tbl %>%
-  filter(measure %in% c("LRT_p_value_S", "LRT_p_value_Y"),
+  filter(str_detect(measure, "p_value"),,
          # We only consider the LRT for correctly specified models.
          model_O_correct,
          model_T_correct) %>%
