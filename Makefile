@@ -2,7 +2,7 @@
 # the simulations.
 B_sim = 200
 # Number of MC replications for the simulations 
-N_MC = 10
+N_MC = 50
 # Number of MC IPD replicates (per trial) to approximate true values.
 n_MC = 1e6
 # Number of bootstrap replications and replications for the permutation test in
