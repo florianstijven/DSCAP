@@ -28,16 +28,16 @@ LRT_statistic <- function(data_subset, formula_O, family) {
 }
 
 
-# Function to compute the LRT test permutation p-value.
-permutation_LRT <- function(data,
-                            formula_O,
-                            family,
-                            formula_CC,
-                            treatment_var,
-                            trial_var,
-                            n_permutations,
-                            estimate_weights,
-                            CC_weight_var = NULL) {
+# Function to compute the WGCM p-value.
+WGCM_LRT <- function(data,
+                     formula_O,
+                     family,
+                     formula_CC,
+                     treatment_var,
+                     trial_var,
+                     n_permutations,
+                     estimate_weights,
+                     CC_weight_var = NULL) {
   df <- data_preparation(
     data = data,
     formula_CC = formula_CC,
@@ -48,15 +48,20 @@ permutation_LRT <- function(data,
     CC_weight_var = CC_weight_var
   )
   
+  browser()
   df_subset = df %>%
     filter(treatment == 0)
-  # Compute a permutation p-value based on the CCI package.
-  perm_test_object = CCI::perm.test(
-    formula = add_condition(formula_O, trial),
-    data = df_subset,
-    nperm = n_permutations
+  
+  # Compute the WGCM p-value. Note that we have to exclude the intercept from
+  # the model matrices.
+  p_value = weightedGCM::wgcm.fix(
+    X = model.matrix(as.formula(paste0("~ - 1 + ", trial_var)), data = df_subset)[, 1],
+    Y = as.matrix(df_subset$Y),
+    Z = model.matrix(update(formula_O, . ~ . -1), data = df_subset),
+    regr.meth = "gam",
+    nsim = n_permutations,
+    weight.num = 7
   )
-  p_value <- perm_test_object$p.value
   
   return(p_value)
 }
