@@ -48,7 +48,6 @@ WGCM_LRT <- function(data,
     CC_weight_var = CC_weight_var
   )
   
-  browser()
   df_subset = df %>%
     filter(treatment == 0)
   
