@@ -271,9 +271,22 @@ LRT_Y = asymptotic_LRT(
   CC_weight_var = NULL
 )
 
+# Compute non-parametric p-value.
+NP_test_Y = WGCM_LRT(
+  data = df,
+  formula_O = formula_Y,
+  family = binomial(),
+  formula_CC = formula_CC,
+  treatment_var = "A",
+  trial_var = "trial",
+  estimate_weights = estimate_weights,
+  CC_weight_var = NULL,
+  n_permutations = n_perm
+)
+
 # Merge LRT results in a tibble and save.
-LRT_tbl = tibble(outcome = c("Y"),
-                    p_value = c(LRT_Y))
+LRT_tbl = tibble(outcome = c("LRT_Y", "NP_Y"),
+                    p_value = c(LRT_Y, NP_test_Y))
 saveRDS(
   LRT_tbl,
   file = paste0(

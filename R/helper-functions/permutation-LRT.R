@@ -28,16 +28,16 @@ LRT_statistic <- function(data_subset, formula_O, family) {
 }
 
 
-# Function to compute the LRT test permutation p-value.
-permutation_LRT <- function(data,
-                            formula_O,
-                            family,
-                            formula_CC,
-                            treatment_var,
-                            trial_var,
-                            n_permutations,
-                            estimate_weights,
-                            CC_weight_var = NULL) {
+# Function to compute the WGCM p-value.
+WGCM_LRT <- function(data,
+                     formula_O,
+                     family,
+                     formula_CC,
+                     treatment_var,
+                     trial_var,
+                     n_permutations,
+                     estimate_weights,
+                     CC_weight_var = NULL) {
   df <- data_preparation(
     data = data,
     formula_CC = formula_CC,
@@ -50,27 +50,31 @@ permutation_LRT <- function(data,
   
   df_subset = df %>%
     filter(treatment == 0)
-  # Compute observed LRT test statistic for the original data.
-  lrt_test_statistic <- LRT_statistic(data_subset = df_subset, formula_O = formula_O, family = family)["statistic"]
   
-  # Initialize vector to store LRT test statistics from the permutations.
-  lrt_test_statistic_permuted = rep(NA, n_permutations)
-  # Vector of trial labels to permute.
-  trial_vec = df_subset$trial
-  # Permute the data `n_permutations` times, and compute the LRT test statistic
-  # for each permutation.
-  for (i in 1:n_permutations) {
-    # Permute trial labels.
-    df_subset$trial <- sample(trial_vec, replace = FALSE)
-    # Compute LRT test statistic for the permuted data.
-    lrt_test_statistic_permuted[i] <- LRT_statistic(data_subset = df_subset,
-                                                    formula_O = formula_O,
-                                                    family = family)["statistic"]
-  }
-  # Compute the permutation p-value.
-  p_value <- mean(lrt_test_statistic_permuted > lrt_test_statistic)
+  # Compute the WGCM p-value. Note that we have to exclude the intercept from
+  # the model matrices.
+  p_value = weightedGCM::wgcm.fix(
+    X = model.matrix(as.formula(paste0("~ - 1 + ", trial_var)), data = df_subset)[, 1],
+    Y = as.matrix(df_subset$Y),
+    Z = model.matrix(update(formula_O, . ~ . -1), data = df_subset),
+    regr.meth = "gam",
+    nsim = n_permutations,
+    weight.num = 7
+  )
   
   return(p_value)
+}
+
+add_condition <- function(f, new_var) {
+  # Extract LHS and RHS
+  lhs <- f[[2]]
+  rhs <- f[[3]]
+  
+  # Build new RHS: new_var | old_rhs
+  new_rhs <- call("|", substitute(new_var), rhs)
+  
+  # Reconstruct formula
+  as.formula(call("~", lhs, new_rhs), env = environment(f))
 }
 
 # Function to compute the LRT p-value based on the chi-squared asymptotic

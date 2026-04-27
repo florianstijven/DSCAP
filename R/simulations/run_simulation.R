@@ -200,29 +200,27 @@ analyze <- function(data,
   # The permutation test p-values are currently not included because the test is
   # not valid.
   
-  # p_value_permutation_Y <- permutation_LRT(
-  #   data = data,
-  #   formula_O = formula_Y,
-  #   formula_CC = formula_CC,
-  #   family = binomial(),
-  #   treatment_var = "A",
-  #   trial_var = "trial",
-  #   n_permutations = n_permutations,
-  #   estimate_weights = estimate_weights
-  # )
-  
-  # p_value_permutation_S <- permutation_LRT(
-  #   data = data,
-  #   formula_O = formula_S,
-  #   formula_CC = formula_CC,
-  #   family = gaussian(),
-  #   treatment_var = "A",
-  #   trial_var = "trial",
-  #   n_permutations = n_permutations,
-  #   estimate_weights = estimate_weights
-  # )
-  p_value_permutation_Y <- NA
-  p_value_permutation_S <- NA
+  p_value_np_Y <- WGCM_LRT(
+    data = data,
+    formula_O = formula_Y,
+    formula_CC = formula_CC,
+    family = binomial(),
+    treatment_var = "A",
+    trial_var = "trial",
+    n_permutations = n_permutations,
+    estimate_weights = estimate_weights
+  )
+
+  p_value_np_S <- WGCM_LRT(
+    data = data,
+    formula_O = formula_S,
+    formula_CC = formula_CC,
+    family = gaussian(),
+    treatment_var = "A",
+    trial_var = "trial",
+    n_permutations = n_permutations,
+    estimate_weights = estimate_weights
+  )
 
   p_value_LRT_Y <- asymptotic_LRT(
       data = data,
@@ -248,8 +246,8 @@ analyze <- function(data,
   inferences_tbl = inferences_tbl %>%
     bind_rows(
       tibble(
-        measure = c("permutation_LRT_p_value_S", "permutation_LRT_p_value_Y"),
-        estimate = c(p_value_permutation_S, p_value_permutation_Y),
+        measure = c("p_value_np_S", "p_value_np_Y"),
+        estimate = c(p_value_np_S, p_value_np_Y),
         type = NA,
         treatment = NA,
         CI_lower_bs = NA,
