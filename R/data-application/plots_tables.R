@@ -101,7 +101,12 @@ lrt_pvalues_tbl = plot_parameters_tbl %>%
 # Plotting -------------------------------------------------------------
 
 # Function to make MA plots.
-ma_plot = function(modn = 1, estimate_weights = TRUE, target, truncation, type) {
+ma_plot = function(modn = 1,
+                   estimate_weights = TRUE,
+                   target,
+                   truncation,
+                   type,
+                   range) {
   trials_chr = c(
     "AstraZeneca",
     "J&J (Brazil)",
@@ -114,16 +119,16 @@ ma_plot = function(modn = 1, estimate_weights = TRUE, target, truncation, type) 
   )
   
   plotting_data = all_results_tbl %>%
-    filter(type %in% c("naive", .env$type),
-      modn == modn,
-      !is.na(trial),
+    filter(
+      type %in% c("naive", .env$type),
+      modn == modn,!is.na(trial),
       estimate_weights == .env$estimate_weights,
       target == .env$target,
       truncation == .env$truncation
     )   %>%
     mutate()
   
-  # Pivot the `plotting_data` to wide format with a seperate column for VE_est and 
+  # Pivot the `plotting_data` to wide format with a seperate column for VE_est and
   # mean_diff_S_est. This makes it easier to plot the estimates and confidence
   # intervals in the MA plot.
   plotting_data = plotting_data %>%
@@ -137,11 +142,16 @@ ma_plot = function(modn = 1, estimate_weights = TRUE, target, truncation, type) 
       type = factor(type, levels = c("Unstandardized", "Standardized")),
       surr_type = ifelse(surr_type == "spike", "Binding Ab", "Neutralizing Ab"),
     )
-  
-  # Limits for the y-axis depend on the settings. The lower limit for the y-axis
-  # is set to a negative value in the 8-trial analyses because the standardized
-  # estimates may be negative there. 
-  if (modn == 1) y_lims = c(-1.5, 1.05) else y_lims = c(-1.5, 1.05)
+  # If `range` is "zoomed", we zoom in on the area around the point estimates,
+  # causing the CIs to not be fully contained in the plot. If `range` is "fit",
+  # we show the full range of the estimates and CIs.
+  if (range == "zoomed") {
+    y_lims = c(0, 1.05)
+    x_lims = c(-0.5, 3)
+  } else if (range == "fit") {
+    y_lims = c(-10, 1.5)
+    x_lims = c(-1, 3)
+  }
   # Plot for binding Ab.
   ma_ggplot = plotting_data %>%
     ggplot(aes(
@@ -161,25 +171,24 @@ ma_plot = function(modn = 1, estimate_weights = TRUE, target, truncation, type) 
       color = "darkgrey"
     ) +
     geom_point(size = 2, show.legend = TRUE) +
-    geom_hline(yintercept = 1,
-               linetype = "dashed",
-               color = "lightgrey") +
-    # ylim(0, 1) + 
-    coord_cartesian(ylim = y_lims,
-                    xlim = c(-0.5, 3)) +
+    geom_hline(
+      yintercept = 1,
+      linetype = "dashed",
+      color = "lightgrey"
+    ) +
+    # ylim(0, 1) +
+    coord_cartesian(ylim = y_lims, xlim = x_lims) +
     scale_shape_manual(
       name = "Trial",
       breaks = trials_chr,
       values = stringr::str_detect(trials_chr, "J&J") + 16
     ) +
-    scale_color_manual(
-      name = "Trial",
-      breaks = trials_chr,
-      values = viridisLite::viridis(8)
-    ) +
-    xlab(bquote(tilde( ~ delta) ^ a)) +
-    ylab(expression(tilde( ~ tau) ^ a ~ " (VE)")) +
-    facet_grid(surr_type~type) +
+    scale_color_manual(name = "Trial",
+                       breaks = trials_chr,
+                       values = viridisLite::viridis(8)) +
+    xlab(bquote(tilde(~ delta)^a)) +
+    ylab(expression(tilde(~ tau)^a ~ " (VE)")) +
+    facet_grid(surr_type ~ type) +
     labs(shape = "Trial") +
     theme(legend.position = "bottom") +
     guides(color = guide_legend(nrow = 2, byrow = TRUE),
@@ -189,20 +198,23 @@ ma_plot = function(modn = 1, estimate_weights = TRUE, target, truncation, type) 
 
 # Save all plots.
 plot_parameters_tbl %>%
-  expand_grid(tibble(type = c("standardized", "doubly robust", "ipw"))) %>%
+  expand_grid(type = c("standardized", "doubly robust", "ipw"),
+                     range = c("zoomed", "fit")) %>%
   mutate(temp = purrr::pmap(
     .l = list(
       target = target,
       modn = modn,
       estimate_weights = estimate_weights,
       truncation = truncation,
-      type = type
+      type = type,
+      range = range
     ),
     .f = function(target,
                   modn,
                   estimate_weights,
                   truncation,
-                  type) {
+                  type,
+                  range) {
       if (estimate_weights)
         weights_chr = "estwts"
       else
@@ -218,8 +230,10 @@ plot_parameters_tbl %>%
                        weights_chr,
                        "_",
                        type,
+                       "_",
+                       range,
                        ".pdf")
-      ma_plot(modn, estimate_weights, target, truncation, type)
+      ma_plot(modn, estimate_weights, target, truncation, type, range)
       ggsave(
         filename = outfile,
         device = "pdf",
