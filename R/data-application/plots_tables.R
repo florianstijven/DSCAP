@@ -146,7 +146,7 @@ ma_plot = function(modn = 1,
   # causing the CIs to not be fully contained in the plot. If `range` is "fit",
   # we show the full range of the estimates and CIs.
   if (range == "zoomed") {
-    y_lims = c(0, 1.05)
+    y_lims = c(-1.5, 1.05)
     x_lims = c(-0.5, 3)
   } else if (range == "fit") {
     y_lims = c(-10, 1.5)
