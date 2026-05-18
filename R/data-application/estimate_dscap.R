@@ -7,13 +7,6 @@ t1 = Sys.time()
 
 set.seed(2)
 
-# Set up parallel computing
-if (parallelly::supportsMulticore()) {
-  plan("multicore", workers = parallel::detectCores() %/% 3)
-} else {
-  plan(multisession, workers = parallel::detectCores() %/% 3)
-}
-
 # Extract arguments for analysis. 
 args = commandArgs(trailingOnly=TRUE)
 antibody_type <- args[1]
@@ -166,7 +159,9 @@ results_DR = inference_DSCAP(
   type = "doubly robust",
   treatment_var = "A",
   trial_var = "trial",
-  corrected_target_trial = FALSE
+  corrected_target_trial = FALSE,
+  parallel = "multicore",
+  ncpus = parallel::detectCores() %/% 3
 )
 
 results_ipw = inference_DSCAP(
@@ -182,7 +177,9 @@ results_ipw = inference_DSCAP(
   type = "ipw",
   treatment_var = "A",
   trial_var = "trial",
-  corrected_target_trial = FALSE
+  corrected_target_trial = FALSE,
+  parallel = "multicore",
+  ncpus = parallel::detectCores() %/% 3
 )
 
 results_st = inference_DSCAP(
@@ -198,7 +195,9 @@ results_st = inference_DSCAP(
   type = "standardized",
   treatment_var = "A",
   trial_var = "trial",
-  corrected_target_trial = FALSE
+  corrected_target_trial = FALSE,
+  parallel = "multicore",
+  ncpus = parallel::detectCores() %/% 3
 )
 
 results_naive = inference_DSCAP(
@@ -214,7 +213,9 @@ results_naive = inference_DSCAP(
   type = "naive",
   treatment_var = "A",
   trial_var = "trial",
-  corrected_target_trial = FALSE
+  corrected_target_trial = FALSE,
+  parallel = "multicore",
+  ncpus = parallel::detectCores() %/% 3
 )
 
 # Determine to which trial each treatment group corresponded.
