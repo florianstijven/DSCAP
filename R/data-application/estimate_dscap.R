@@ -9,9 +9,9 @@ set.seed(2)
 
 # Set up parallel computing
 if (parallelly::supportsMulticore()) {
-  plan("multicore", workers = parallel::detectCores() - 1)
+  plan("multicore", workers = parallel::detectCores() %/% 3)
 } else {
-  plan(multisession, workers = parallel::detectCores() - 1)
+  plan(multisession, workers = parallel::detectCores() %/% 3)
 }
 
 # Extract arguments for analysis. 
