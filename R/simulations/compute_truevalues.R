@@ -77,7 +77,8 @@ simulate_and_analyze <- function(n_trials,
                                  estimate_weights = FALSE,
                                  alpha = 0.05,
                                  B,
-                                 different_placebo_model) {
+                                 different_placebo_model,
+                                 bridge_error) {
   # Generate data.
   simulated_data <- generate_simulated_data(
     n_trials = n_trials,
@@ -89,7 +90,8 @@ simulate_and_analyze <- function(n_trials,
     zeta = zeta,
     CC_sampling = CC_sampling, 
     target_trial = target_trial,
-    different_placebo_model = different_placebo_model
+    different_placebo_model = different_placebo_model,
+    bridge_error = bridge_error
   )
   
   # Compute proportion of events in each trial-treatment arm.
@@ -151,7 +153,8 @@ true_values_tbl$inferences_tbl = future_pmap(
     theta = true_values_tbl$theta,
     zeta = true_values_tbl$zeta,
     target_trial = true_values_tbl$target_trial,
-    different_placebo_model = true_values_tbl$different_placebo_model
+    different_placebo_model = true_values_tbl$different_placebo_model,
+    bridge_error = true_values_tbl$bridge_error
   ),
   .f = simulate_and_analyze,
   formula_S = formula_S,
