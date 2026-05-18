@@ -63,22 +63,6 @@ estimate_DSCAP <- function(data,
       ) 
   }
   
-  # If any estimated proportions are zero, add 0.5 divided by that treatment
-  # group's sample size to the estimated proportion.
-  if (any(means_df$mean_Y == 0)) {
-    if (type == "naive") {
-      means_df = means_df %>%
-        group_by(trial, treatment) %>%
-        mutate(mean_Y = ifelse(mean_Y == 0, 0.5 / n(), mean_Y)) %>%
-        ungroup()
-    } else {
-      means_df = means_df %>%
-        group_by(treatment) %>%
-        mutate(mean_Y = ifelse(mean_Y == 0, 0.5 / n(), mean_Y)) %>%
-        ungroup()
-    }
-  }
-  
   # Compute treatments effects. For the naive estimator, we compute the
   # treatment effects separately for each trial. 
   if (type == "naive") {
