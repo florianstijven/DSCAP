@@ -118,3 +118,22 @@ dgm_param_tbl <- dgm_param_tbl %>%
       (setting == "3" & n_t == 8000) |
       (setting == "X" & n_t %in% c(3000))
   )
+
+# For scenario 1, add simulation with n_t = 500 without case-cohort sampling. 
+dgm_param_tbl <- dgm_param_tbl %>%
+  bind_rows(
+    dgm_param_tbl %>%
+      filter(setting == "1", CC_sampling == FALSE) %>%
+      mutate(setting = "1b", n_t = 500)
+  )
+
+# Also add an adapted scenario 1 where the residual in the linear model for S
+# follows a bridge distribution instead of a normal distribution, and Y is
+# sampled from a distribution conditional on S.
+dgm_param_tbl <- dgm_param_tbl %>%
+  mutate(bridge_error = FALSE) %>%
+  bind_rows(
+    dgm_param_tbl %>%
+      filter(setting == "1", CC_sampling == FALSE, n_t == 3000) %>%
+      mutate(setting = "1c", bridge_error = TRUE)
+  ) 

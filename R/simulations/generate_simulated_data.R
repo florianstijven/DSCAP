@@ -19,7 +19,8 @@ generate_simulated_data <- function(
     zeta,
     CC_sampling = FALSE,
     target_trial = NULL,
-    different_placebo_model = FALSE
+    different_placebo_model = FALSE,
+    bridge_error = FALSE
 ) {
   
   N <- n_trials * n_t
@@ -69,8 +70,27 @@ generate_simulated_data <- function(
         mu_Y <- inv_logit(model_matrix_Y[idx, ] %*% theta_a)
         mu_S <- model_matrix_S[idx, ] %*% gamma_a
         
-        sample_df$Y[idx] <- rbinom(length(idx), 1, mu_Y)
-        sample_df$S[idx] <- rnorm(length(idx), mu_S, ifelse(a == 0, 0.28, 0.64))
+        
+        # If `bridge_error` is TRUE, we sample the residual for the linear model
+        # for S from a bridge distribution instead of a normal distribution, and
+        # we sample Y from a distribution conditional on S.
+        if (bridge_error) {
+          # Define phi parameter that gives unit variance.
+          phi = 1 / sqrt(1 + 3 / pi^2)
+          residuals_S <- ifelse(
+            a == 0,
+            0.28 * bridgedist::rbridge(length(idx), scale = phi),
+            0.64 * bridgedist::rbridge(length(idx), scale = phi)
+          )
+          sample_df$S[idx] <- mu_S + residuals_S
+          
+          mu_Y = mu_Y + residuals_S
+          sample_df$Y[idx] <- rbinom(length(idx), 1, mu_Y)
+        } else {
+          sample_df$S[idx] <- rnorm(length(idx), mu_S, ifelse(a == 0, 0.28, 0.64))
+          
+          sample_df$Y[idx] <- rbinom(length(idx), 1, mu_Y)
+        }
       }
     }
   } else {

@@ -287,7 +287,8 @@ simulate_and_analyze <- function(n_trials,
                                  B, 
                                  n_permutations,
                                  corrected_target_trial,
-                                 different_placebo_model) {
+                                 different_placebo_model,
+                                 bridge_error) {
   # Generate data.
   simulated_data <- generate_simulated_data(
     n_trials = n_trials,
@@ -299,7 +300,8 @@ simulate_and_analyze <- function(n_trials,
     theta = theta,
     zeta = zeta,
     CC_sampling = CC_sampling, 
-    different_placebo_model = different_placebo_model
+    different_placebo_model = different_placebo_model,
+    bridge_error = bridge_error
   )
   # Analyze data.
   inferences_tbl <- analyze(
@@ -347,7 +349,8 @@ simulations_results_tbl$inferences_tbl = future_pmap(
     different_placebo_model = simulations_results_tbl$different_placebo_model,
     formula_S = simulations_results_tbl$formula_S,
     formula_Y = simulations_results_tbl$formula_Y,
-    formula_T = simulations_results_tbl$formula_T
+    formula_T = simulations_results_tbl$formula_T,
+    bridge_error = simulations_results_tbl$bridge_error
   ),
   .f = simulate_and_analyze,
   target_trial = 1,
