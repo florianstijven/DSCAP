@@ -84,7 +84,7 @@ generate_simulated_data <- function(
           )
           sample_df$S[idx] <- mu_S + residuals_S
           
-          mu_Y = mu_Y + residuals_S
+          mu_Y = mu_Y - residuals_S
           sample_df$Y[idx] <- rbinom(length(idx), 1, mu_Y)
         } else {
           sample_df$S[idx] <- rnorm(length(idx), mu_S, ifelse(a == 0, 0.28, 0.64))
