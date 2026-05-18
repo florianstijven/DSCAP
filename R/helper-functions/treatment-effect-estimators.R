@@ -348,6 +348,11 @@ DR_estimator <- function(data,
            mean_S = mean_S + mean_S_correction) %>%
     select(treatment, mean_Y, mean_S)
   
+  # Truncate the doubly-robust estimates of the means for Y to be between 0 and
+  # 1, since Y is a binary variable.
+  DR_means_df <- DR_means_df %>%
+    mutate(mean_Y = pmin(pmax(mean_Y, 0), 1))
+  
   return(DR_means_df)
 }
 
