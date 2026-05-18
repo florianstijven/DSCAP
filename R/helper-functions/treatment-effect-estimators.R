@@ -531,7 +531,9 @@ compute_ipw_weights <- function(df, formula_T, target_trial) {
   
   # Estimate model for trial participation given X. The linear predictor of this
   # model is given in `formula_T`.
-  trial_participation_model_fit <- nnet::multinom(formula_T, df)
+  trial_participation_model_fit <- nnet::multinom(formula = formula_T, 
+                                                  data = df,
+                                                  trace = FALSE)
 
   # Compute the predicted probabilities of trial participation for each subject
   # and add them to df_ipw.
