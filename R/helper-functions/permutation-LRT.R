@@ -14,10 +14,11 @@ LRT_statistic <- function(data_subset, formula_O, family) {
                   subset = (Delta == 1),
                   weights = CC_weight,
                   x = FALSE,
-                  y = FALSE)
+                  y = FALSE,
+                  na.action = na.omit)
   # Fit alternative model that contains the interaction between all predictors
   # in the null model and the trial variable.
-  glm_w_trial <-update(glm_null, ~ . * trial)
+  glm_w_trial <-update(glm_null, ~ . * trial, na.action = na.omit)
   # Compute the likelihood ratio test statistic. 
   glm_lr_test = lmtest::lrtest(glm_null, glm_w_trial)
 

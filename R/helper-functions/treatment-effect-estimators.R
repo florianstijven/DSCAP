@@ -51,7 +51,8 @@ data_preparation <- function(data,
         data = df,
         family = binomial,
         x = FALSE,
-        y = FALSE
+        y = FALSE,
+        na.action = na.omit
       )
       df <- df %>%
         mutate(CC_weight = 1 / predict(
@@ -459,7 +460,8 @@ fit_outcome_models <- function(df, formula_Y, formula_S) {
           data = df_stratum,
           family = binomial,
           x = FALSE,
-          y = FALSE
+          y = FALSE,
+          na.action = na.omit
         )
         
         # Fit the model for S.
@@ -470,7 +472,8 @@ fit_outcome_models <- function(df, formula_Y, formula_S) {
           subset = (Delta == 1),
           weights = CC_weight,
           x = FALSE,
-          y = FALSE
+          y = FALSE,
+          na.action = na.omit
         )
         
         # Return a data frame with the fitted models.
