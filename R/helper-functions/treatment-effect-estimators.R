@@ -253,6 +253,9 @@ DR_estimator <- function(data,
   df_target_population = df %>%
     filter(target_population)
   
+  # Size of the target population.
+  n_target = nrow(df_target_population)
+  
   outcome_model_fits_df <- outcome_model_fits_df %>%
     mutate(
       predicted_Y = purrr::map(
@@ -348,11 +351,14 @@ DR_estimator <- function(data,
     mutate(mean_Y = mean_Y + mean_Y_correction,
            mean_S = mean_S + mean_S_correction) %>%
     select(treatment, mean_Y, mean_S)
-  
+  browser()
   # Truncate the doubly-robust estimates of the means for Y to be between 0 and
-  # 1, since Y is a binary variable.
+  # 1, since Y is a binary variable. Instead of 0/1, we use 0.5 / n for n the
+  # size of the target population and 1 - 0.5 / n as the truncation points to
+  # avoid having estimated means of exactly 0 or 1, which can lead to issues
+  # when computing relative risks or related measures.
   DR_means_df <- DR_means_df %>%
-    mutate(mean_Y = pmin(pmax(mean_Y, 0), 1))
+    mutate(mean_Y = pmin(pmax(mean_Y, 0.5 / n_target), 1 - (0.5 / n_target)))
   
   return(DR_means_df)
 }
