@@ -244,7 +244,7 @@ association_measures <- function(trt_effects_df) {
                   method = "spearman")
   
   # Linear regression slope
-  beta_est = coef(lm(VE_est ~ mean_diff_S_est, data = trt_effects_df))[2]
+  beta_est = coef(lm(VE_est ~ mean_diff_S_est, data = trt_effects_df, na.action = na.omit))[2]
   
   association_measures_df = tibble(
     cor_p_est = cor_p_est,

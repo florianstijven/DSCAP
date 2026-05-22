@@ -51,7 +51,8 @@ data_preparation <- function(data,
         data = df,
         family = binomial,
         x = FALSE,
-        y = FALSE
+        y = FALSE,
+        na.action = na.omit
       )
       df <- df %>%
         mutate(CC_weight = 1 / predict(
@@ -135,6 +136,9 @@ standardization_estimator <- function(data,
   df_target_population = df %>%
     filter(target_population)
   
+  # Size of the target population.
+  n_target = nrow(df_target_population)
+  
   outcome_model_fits_df <- outcome_model_fits_df %>%
     mutate(
       predicted_Y = purrr::map(
@@ -159,6 +163,12 @@ standardization_estimator <- function(data,
       mean_S = purrr::map_dbl(.x = predicted_S, .f = mean)
     ) %>%
     dplyr::select(treatment, mean_Y, mean_S)
+  
+  # Truncate the estimates of the means for Y to be between 0 and 1, since Y is
+  # a binary variable. See also comment below for the same truncation applied to
+  # the doubly-robust estimates of the means for Y.
+  standardized_means_df <- standardized_means_df %>%
+    mutate(mean_Y = pmin(pmax(mean_Y, 0.5 / n_target), 1 - (0.5 / n_target)))
   
   return(standardized_means_df)
   
@@ -190,6 +200,11 @@ ipw_estimator <- function(data,
   # Compute the IPW weights for each subject in the target trial.
   df_weights = compute_ipw_weights(df, formula_T, target_trial)
   
+  # Size of the target population.
+  n_target = df %>%
+    filter(target_population) %>%
+    nrow()
+  
   # Compute the weighted means for Y and S for each treatment.
   ipw_means_df <- df_weights %>%
     left_join(df %>%
@@ -208,6 +223,12 @@ ipw_estimator <- function(data,
       mean_Y = sum(Y * W_hat_a) / sum(W_hat_a),
       mean_S = sum(S * W_hat_a * Delta * CC_weight) / sum(W_hat_a * Delta * CC_weight)
     )
+  
+  # Truncate the estimates of the means for Y to be between 0 and 1, since Y is
+  # a binary variable. See also comment below for the same truncation applied to
+  # the doubly-robust estimates of the means for Y.
+  ipw_means_df <- ipw_means_df %>%
+    mutate(mean_Y = pmin(pmax(mean_Y, 0.5 / n_target), 1 - (0.5 / n_target)))
   
   return(ipw_means_df)
 }
@@ -251,6 +272,9 @@ DR_estimator <- function(data,
   # Y and S for all subjects from the target trial.
   df_target_population = df %>%
     filter(target_population)
+  
+  # Size of the target population.
+  n_target = nrow(df_target_population)
   
   outcome_model_fits_df <- outcome_model_fits_df %>%
     mutate(
@@ -347,11 +371,13 @@ DR_estimator <- function(data,
     mutate(mean_Y = mean_Y + mean_Y_correction,
            mean_S = mean_S + mean_S_correction) %>%
     select(treatment, mean_Y, mean_S)
-  
   # Truncate the doubly-robust estimates of the means for Y to be between 0 and
-  # 1, since Y is a binary variable.
+  # 1, since Y is a binary variable. Instead of 0/1, we use 0.5 / n for n the
+  # size of the target population and 1 - 0.5 / n as the truncation points to
+  # avoid having estimated means of exactly 0 or 1, which can lead to issues
+  # when computing relative risks or related measures.
   DR_means_df <- DR_means_df %>%
-    mutate(mean_Y = pmin(pmax(mean_Y, 0), 1))
+    mutate(mean_Y = pmin(pmax(mean_Y, 0.5 / n_target), 1 - (0.5 / n_target)))
   
   return(DR_means_df)
 }
@@ -378,6 +404,7 @@ naive_estimator <- function(data,
     group_by(trial, treatment) %>%
     dplyr::summarize(
       mean_Y = mean(Y),
+      mean_Y = min(max(mean_Y, 0.5 / n()), 1 - (0.5 / n())),
       n = n(),
       mean_S = sum(Delta * CC_weight * S) / sum(Delta * CC_weight),
       var_S = var(Delta * CC_weight * S),
@@ -459,7 +486,8 @@ fit_outcome_models <- function(df, formula_Y, formula_S) {
           data = df_stratum,
           family = binomial,
           x = FALSE,
-          y = FALSE
+          y = FALSE,
+          na.action = na.omit
         )
         
         # Fit the model for S.
@@ -470,7 +498,8 @@ fit_outcome_models <- function(df, formula_Y, formula_S) {
           subset = (Delta == 1),
           weights = CC_weight,
           x = FALSE,
-          y = FALSE
+          y = FALSE,
+          na.action = na.omit
         )
         
         # Return a data frame with the fitted models.
