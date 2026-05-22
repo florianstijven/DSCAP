@@ -351,7 +351,6 @@ DR_estimator <- function(data,
     mutate(mean_Y = mean_Y + mean_Y_correction,
            mean_S = mean_S + mean_S_correction) %>%
     select(treatment, mean_Y, mean_S)
-  browser()
   # Truncate the doubly-robust estimates of the means for Y to be between 0 and
   # 1, since Y is a binary variable. Instead of 0/1, we use 0.5 / n for n the
   # size of the target population and 1 - 0.5 / n as the truncation points to
