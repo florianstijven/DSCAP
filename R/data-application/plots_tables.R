@@ -2,6 +2,7 @@
 # Load required packages
 library(tidyverse)
 library(patchwork)
+library(scales)
 
 # Specify options for saving the plots to files
 figures_dir = "results/data-application/figures/"
@@ -100,6 +101,19 @@ lrt_pvalues_tbl = plot_parameters_tbl %>%
 
 # Plotting -------------------------------------------------------------
 
+# Define transformation for VE scale.
+transform_VE = new_transform(
+  name = "VE",
+  transform = function(x) -1 * log(1 - x),
+  inverse = function(x) 1 - exp(-x)
+)
+
+transform_id = new_transform(
+  name = "identity",
+  transform = identity,
+  inverse = identity
+)
+
 # Function to make MA plots.
 ma_plot = function(modn = 1,
                    estimate_weights = TRUE,
@@ -145,12 +159,22 @@ ma_plot = function(modn = 1,
   # If `range` is "zoomed", we zoom in on the area around the point estimates,
   # causing the CIs to not be fully contained in the plot. If `range` is "fit",
   # we show the full range of the estimates and CIs.
-  if (range == "zoomed") {
-    y_lims = c(-1.5, 1.05)
+  transform_f = transform_id
+  breaks = waiver()
+  if (range == "zoomed1") {
+    y_lims = c(-0.5, 1)
     x_lims = c(-0.5, 3)
   } else if (range == "fit") {
     y_lims = c(-10, 1.5)
     x_lims = c(-1, 3)
+    transform_f = transform_VE
+    breaks = c(-10, -2, 0, 0.5, 0.75, 0.90, 0.95, 0.99)
+  } else if (range == "zoomed2") {
+    y_lims = c(-0, 1)
+    x_lims = c(-0.5, 3)
+  }
+   else {
+    stop("Invalid value for `range`. Must be one of 'zoomed1', 'zoomed2', or 'fit'.")
   }
   # Plot for binding Ab.
   ma_ggplot = plotting_data %>%
@@ -171,11 +195,9 @@ ma_plot = function(modn = 1,
       color = "darkgrey"
     ) +
     geom_point(size = 2, show.legend = TRUE) +
-    geom_hline(
-      yintercept = 1,
-      linetype = "dashed",
-      color = "lightgrey"
-    ) +
+    geom_hline(yintercept = 1,
+               linetype = "dashed",
+               color = "lightgrey") +
     # ylim(0, 1) +
     coord_cartesian(ylim = y_lims, xlim = x_lims) +
     scale_shape_manual(
@@ -183,14 +205,16 @@ ma_plot = function(modn = 1,
       breaks = trials_chr,
       values = stringr::str_detect(trials_chr, "J&J") + 16
     ) +
+    scale_y_continuous(transform = transform_f, breaks = breaks) +
     scale_color_manual(name = "Trial",
                        breaks = trials_chr,
                        values = viridisLite::viridis(8)) +
-    xlab(bquote(tilde(~ delta)^a)) +
-    ylab(expression(tilde(~ tau)^a ~ " (VE)")) +
+    xlab(bquote(tilde( ~ delta)^a)) +
+    ylab(expression(tilde( ~ tau)^a ~ " (VE)")) +
     facet_grid(surr_type ~ type) +
     labs(shape = "Trial") +
-    theme(legend.position = "bottom") +
+    theme(legend.position = "bottom",
+          legend.text = element_text(margin = margin(r = 0, unit = "pt"))) +
     guides(color = guide_legend(nrow = 2, byrow = TRUE),
            shape = guide_legend(nrow = 2, byrow = TRUE))
   return(ma_ggplot)
@@ -199,7 +223,7 @@ ma_plot = function(modn = 1,
 # Save all plots.
 plot_parameters_tbl %>%
   expand_grid(type = c("standardized", "doubly robust", "ipw"),
-                     range = c("zoomed", "fit")) %>%
+                     range = c("zoomed1", "fit", "zoomed2")) %>%
   mutate(temp = purrr::pmap(
     .l = list(
       target = target,
@@ -310,10 +334,10 @@ plot_parameters_tbl %>%
 # the full-population 8-trial analysis and truncated-population 6-trial analysis
 # in the main text of the paper.
 sink(paste0(tables_dir, "surrogacy-main-results.txt"))
-cat("**Doubly Robust Estimator --- 8-trial-analysis**\n\n")
+cat("**Direct Standardization Estimator --- 8-trial-analysis**\n\n")
 all_results_tbl %>%
   filter(is.na(trial)) %>%
-  filter(modn == 1, type == "doubly robust") %>%
+  filter(modn == 1, type == "direct standardization") %>%
   mutate(standardized = paste0(round(estimate, 2), " (", round(CI_lower_bs, 2), ", ", round(CI_upper_bs, 2), ")")) %>%
   select(measure, standardized, surr_type) %>%
   left_join(
@@ -326,10 +350,10 @@ all_results_tbl %>%
   ) %>%
   select(surr_type, measure, naive, standardized)
 cat("\n\n")
-cat("**Doubly Robust Estimator --- 6-trial-analysis**\n\n")
+cat("**Direct Standardization Estimator --- 6-trial-analysis**\n\n")
 all_results_tbl %>%
   filter(is.na(trial)) %>%
-  filter(modn == 2, type == "doubly robust") %>%
+  filter(modn == 2, type == "direct standardization") %>%
   mutate(standardized = paste0(round(estimate, 2), " (", round(CI_lower_bs, 2), ", ", round(CI_upper_bs, 2), ")")) %>%
   select(measure, standardized, surr_type) %>%
   left_join(
@@ -378,10 +402,10 @@ all_results_tbl %>%
   ) %>%
   select(surr_type, measure, naive, ipw)
 cat("\n\n")
-cat("**Standardization Estimator --- 8-trial-analysis**\n\n")
+cat("**Doubly Robust Estimator --- 8-trial-analysis**\n\n")
 all_results_tbl %>%
   filter(is.na(trial)) %>%
-  filter(modn == 1, type == "standardized") %>%
+  filter(modn == 1, type == "doubly robust") %>%
   mutate(standardized = paste0(round(estimate, 2), " (", round(CI_lower_bs, 2), ", ", round(CI_upper_bs, 2), ")")) %>%
   select(measure, standardized, surr_type) %>%
   left_join(
@@ -394,10 +418,10 @@ all_results_tbl %>%
   ) %>%
   select(surr_type, measure, naive, standardized)
 cat("\n\n")
-cat("**Standardization Estimator --- 6-trial-analysis**\n\n")
+cat("**Doubly Robust Estimator --- 6-trial-analysis**\n\n")
 all_results_tbl %>%
   filter(is.na(trial)) %>%
-  filter(modn == 2, type == "standardized") %>%
+  filter(modn == 2, type == "doubly robust") %>%
   mutate(standardized = paste0(round(estimate, 2), " (", round(CI_lower_bs, 2), ", ", round(CI_upper_bs, 2), ")")) %>%
   select(measure, standardized, surr_type) %>%
   left_join(
