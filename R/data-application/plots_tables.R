@@ -337,7 +337,7 @@ sink(paste0(tables_dir, "surrogacy-main-results.txt"))
 cat("**Direct Standardization Estimator --- 8-trial-analysis**\n\n")
 all_results_tbl %>%
   filter(is.na(trial)) %>%
-  filter(modn == 1, type == "direct standardization") %>%
+  filter(modn == 1, type == "standardized") %>%
   mutate(standardized = paste0(round(estimate, 2), " (", round(CI_lower_bs, 2), ", ", round(CI_upper_bs, 2), ")")) %>%
   select(measure, standardized, surr_type) %>%
   left_join(
@@ -353,7 +353,7 @@ cat("\n\n")
 cat("**Direct Standardization Estimator --- 6-trial-analysis**\n\n")
 all_results_tbl %>%
   filter(is.na(trial)) %>%
-  filter(modn == 2, type == "direct standardization") %>%
+  filter(modn == 2, type == "standardized") %>%
   mutate(standardized = paste0(round(estimate, 2), " (", round(CI_lower_bs, 2), ", ", round(CI_upper_bs, 2), ")")) %>%
   select(measure, standardized, surr_type) %>%
   left_join(
