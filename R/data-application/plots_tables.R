@@ -162,8 +162,8 @@ ma_plot = function(modn = 1,
   transform_f = transform_id
   breaks = waiver()
   if (range == "zoomed1") {
-    y_lims = c(-0.5, 1)
-    x_lims = c(-0.5, 3)
+    y_lims = c(-0.55, 1)
+    x_lims = c(0, 3)
   } else if (range == "fit") {
     y_lims = c(-10, 1.5)
     x_lims = c(-1, 3)
@@ -171,7 +171,7 @@ ma_plot = function(modn = 1,
     breaks = c(-10, -2, 0, 0.5, 0.75, 0.90, 0.95, 0.99)
   } else if (range == "zoomed2") {
     y_lims = c(-0, 1)
-    x_lims = c(-0.5, 3)
+    x_lims = c(0, 3)
   }
    else {
     stop("Invalid value for `range`. Must be one of 'zoomed1', 'zoomed2', or 'fit'.")
