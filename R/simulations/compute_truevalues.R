@@ -1,6 +1,6 @@
 # Preliminaries -----------------------------------------------------------
 t1 <- Sys.time()
-
+ 
 # Load all R packages
 library(tidyverse)
 library(furrr) # for parallel computing
