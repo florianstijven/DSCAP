@@ -574,8 +574,6 @@ simulations_summary_tbl %>%
   print(n = 500)
 sink()
 
-
-
 # Print the error rates for the LRT.
 sink(file = paste0(tables_dir, "LRT-results.txt"))
 error_rates_LRT_tbl %>%
@@ -583,5 +581,142 @@ error_rates_LRT_tbl %>%
   print(n = 500)
 sink()
 
+## Latex tables format -----------------------------------------------
 
 
+simulations_summary_tbl_latex = simulations_summary_tbl %>%
+  mutate(across(where(is.numeric), ~ round(., 3))) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.na(.), "--", .))) %>%
+  mutate(coverage = coverage * 100) %>%
+  # rename settings consistent with paper
+  mutate(setting = case_when(
+    setting == "1" ~ "1",
+    setting == "2" ~ "2",
+    setting == "3" ~ "3",
+    setting == "X" ~ "5"
+  )) %>%
+  mutate(setting = ifelse(CC_sampling, "4", setting))
+
+sink(file = paste0(tables_dir, "latex-formatted-simulation-results.txt"))
+# Table 1: simulation results for scenarios 1--3 + CC with correctly specified
+# models.
+cat("** Table 1 **")
+simulations_summary_tbl_latex %>%
+  filter(measure %in% c("cor_s_est", "cor_p_est", "beta_est")) %>%
+  filter(model_O_correct == TRUE, model_T_correct == TRUE) %>%
+  filter(setting %in% c("1", "2", "3", "4")) %>%
+  select(setting,
+         n_trials,
+         n_t,
+         CC_sampling,
+         measure,
+         type,
+         mean_bias,
+         coverage) %>%
+  pivot_wider(names_from = "type",
+              values_from = c("mean_bias", "coverage")) %>%
+  arrange(setting, measure, n_trials, n_t) %>%
+  ungroup() %>%
+  select(-treatment, -model_O_correct, -n_trials, -CC_sampling) %>%
+  select(
+    setting,
+    measure,
+    mean_bias_naive,
+    `mean_bias_doubly robust`,
+    `coverage_doubly robust`,
+    `mean_bias_ipw`,
+    `coverage_ipw`,
+    `mean_bias_standardization`,
+    `coverage_standardization`
+  ) %>%
+  # print as latex table.
+  knitr::kable(format = "latex", booktabs = TRUE)
+
+# Table 2: simulation results for scenario 1 with misspecified models.
+cat("\n\n** Table 2 **")
+simulations_summary_tbl %>%
+  filter(measure %in% c("cor_s_est", "cor_p_est", "beta_est")) %>%
+  filter(setting == "1") %>%
+  select(setting, n_trials, n_t, CC_sampling, measure, type, model_O_correct, model_T_correct, mean_bias, coverage) %>%
+  pivot_wider(names_from = "type", values_from = c("mean_bias", "coverage")) %>%
+  arrange(setting, measure, n_trials, n_t) %>%
+  ungroup() %>%
+  select(-treatment, -n_trials, -CC_sampling) %>%
+  select(
+    measure,
+    model_O_correct,
+    model_T_correct,
+    `mean_bias_doubly robust`,
+    `coverage_doubly robust`,
+    `mean_bias_ipw`,
+    `coverage_ipw`,
+    `mean_bias_standardization`,
+    `coverage_standardization`
+  ) %>%
+  # Round the numeric columns to 3 decimal places for better formatting.
+  mutate(across(where(is.numeric), ~ round(., 3))) %>%
+  mutate(coverage_standardization = coverage_standardization * 100,
+       coverage_ipw = coverage_ipw * 100,
+       `coverage_doubly robust` = `coverage_doubly robust` * 100) %>%
+  arrange(-model_T_correct,-model_O_correct) %>%
+  # replace NAs with dashes for better formatting.
+  mutate(across(where(is.numeric), ~ ifelse(is.na(.), "--", .))) %>%
+  # print as latex table.
+  knitr::kable(format = "latex", booktabs = TRUE)
+
+# Table 3: error rates for the LRT.
+cat("\n\n** Table 3 **")
+error_rates_LRT_tbl %>%
+  pivot_wider(names_from = "measure", values_from = "type_I_error_rate") %>%
+  filter(setting %in% c("1", "2", "3", "X")) %>%
+  # rename settings consistent with paper
+  mutate(setting = case_when(
+    setting == "1" ~ "1",
+    setting == "2" ~ "2",
+    setting == "3" ~ "3",
+    setting == "X" ~ "5"
+  )) %>%
+  mutate(setting = ifelse(CC_sampling, "4", setting)) %>%
+  # Round the numeric columns to 3 decimal places for better formatting.
+  mutate(across(where(is.numeric), ~ round(., 3))) %>%
+  # print as latex table.
+  knitr::kable(format = "latex", booktabs = TRUE)
+
+# Table S5: additional simulation results for modifications of scenario 1.
+cat("\n\n** Table S5 **")
+simulations_summary_tbl %>%
+  filter(measure %in% c("cor_s_est", "cor_p_est", "beta_est")) %>%
+  filter(model_O_correct == TRUE, model_T_correct == TRUE) %>%
+  filter(setting %in% c("1b", "1c")) %>%
+  select(setting,
+         n_trials,
+         n_t,
+         CC_sampling,
+         measure,
+         type,
+         mean_bias,
+         coverage) %>%
+  pivot_wider(names_from = "type",
+              values_from = c("mean_bias", "coverage")) %>%
+  arrange(setting, measure, n_trials, n_t) %>%
+  ungroup() %>%
+  select(-treatment, -model_O_correct, -n_trials, -CC_sampling) %>%
+  select(
+    setting,
+    measure,
+    mean_bias_naive,
+    `mean_bias_doubly robust`,
+    `coverage_doubly robust`,
+    `mean_bias_ipw`,
+    `coverage_ipw`,
+    `mean_bias_standardization`,
+    `coverage_standardization`
+  ) %>%
+  mutate(coverage_standardization = coverage_standardization * 100,
+         coverage_ipw = coverage_ipw * 100,
+         `coverage_doubly robust` = `coverage_doubly robust` * 100) %>%
+  # Round the numeric columns to 3 decimal places for better formatting.
+  mutate(across(where(is.numeric), ~ round(., 3))) %>%
+  # print as latex table.
+  knitr::kable(format = "latex", booktabs = TRUE)
+sink()
