@@ -1,7 +1,0 @@
-do medium-scale sim to check results
-
-sims with violated exch assumption
-
-do large sims
-
-permutation test is invalid
